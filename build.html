@@ -55,27 +55,6 @@
   <div class="body">
 
     <!-- B. 부품·프리셋 라이브러리 ─────────────────────── -->
-    <!-- B. 주문서 (좌측) ─────────────────────────────── -->
-    <aside class="order" id="order">
-      <div class="otot">
-        <span class="mono">Total</span>
-        <b id="q-total">—</b>
-        <span id="q-delta" class="delta"></span>
-      </div>
-      <button class="link" id="q-breakdown">견적 상세</button>
-
-      <dl class="ometa">
-        <div><dt>납기</dt><dd id="q-lead">—</dd></div>
-        <div><dt>무게</dt><dd id="q-weight">—</dd></div>
-        <div><dt>부재</dt><dd id="q-parts">—</dd></div>
-      </dl>
-
-      <div class="oacts">
-        <button class="tb" id="q-bom">부품표</button>
-        <button class="go" id="q-cart">장바구니 담기</button>
-      </div>
-    </aside>
-
     <!-- C. 3D 뷰포트 ─────────────────────────────────── -->
     <main class="view" id="view">
       <canvas id="cv"></canvas>
@@ -93,10 +72,10 @@
         <button id="v-explode" title="분해도">⊞</button>
       </div>
 
-      <!-- F. 검증 배너 -->
-      <div class="banner" id="banner" role="status" aria-live="polite"></div>
     </main>
 
+    <!-- 좌측 한 줄기: 치수 → 주문서 → 알림 ────────────── -->
+    <div class="rail" id="rail">
     <!-- D. 속성 패널 ─────────────────────────────────── -->
     <aside class="props" id="props">
 
@@ -152,6 +131,30 @@
         <button class="wide ghost" id="sel-remove">이 칸 비우기</button>
       </div>
     </aside>
+
+    <!-- B. 주문서 (좌측) ─────────────────────────────── -->
+    <aside class="order" id="order">
+      <div class="otot">
+        <span class="mono">Total</span>
+        <b id="q-total">—</b>
+        <span id="q-delta" class="delta"></span>
+      </div>
+      <button class="link" id="q-breakdown">견적 상세</button>
+
+      <dl class="ometa">
+        <div><dt>납기</dt><dd id="q-lead">—</dd></div>
+        <div><dt>무게</dt><dd id="q-weight">—</dd></div>
+        <div><dt>부재</dt><dd id="q-parts">—</dd></div>
+      </dl>
+
+      <div class="oacts">
+        <button class="tb" id="q-bom">부품표</button>
+        <button class="go" id="q-cart">장바구니 담기</button>
+      </div>
+    </aside>
+
+    <div class="banner" id="banner" role="status" aria-live="polite"></div>
+    </div>
   </div>
 
 

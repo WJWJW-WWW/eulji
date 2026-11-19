@@ -7,7 +7,7 @@
 }
 body{font-size:13px;overflow:hidden;height:100svh}
 h3{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--mute);margin:18px 0 8px;font-weight:400}
+  color:var(--mute);margin:13px 0 7px;font-weight:400}
 h3:first-child{margin-top:0}
 h3 small{text-transform:none;letter-spacing:0;color:var(--mute);font-weight:400}
 .hint{font-size:11.5px;color:var(--mute);line-height:1.6}
@@ -52,23 +52,27 @@ h3 small{text-transform:none;letter-spacing:0;color:var(--mute);font-weight:400}
 .body{position:absolute;inset:0}
 
 /* ── B / D. 사이드 패널 ─────────────────────── */
-.order,.props{
-  position:absolute;top:var(--bar);bottom:var(--quote);width:var(--side);z-index:5;
-  overflow-y:auto;overscroll-behavior:contain;padding:14px 12px 18px;
-  background:transparent;border:0;
+/* 치수 → 주문서 → 알림을 왼쪽 한 줄기에 세로로 세운다.
+   오른쪽에는 시점 큐브만 남는다. */
+.rail{
+  position:absolute;top:var(--bar);left:0;bottom:0;width:var(--side);z-index:5;
+  display:flex;flex-direction:column;gap:10px;
+  overflow:hidden;padding:14px 12px 18px;
   pointer-events:none;              /* 빈 자리에서는 뒤의 3D 를 돌릴 수 있다 */
-  scrollbar-width:none;
 }
-.order::-webkit-scrollbar,.props::-webkit-scrollbar{display:none}
-.order > *,.props > *{pointer-events:auto}
-.order{left:0;display:flex;flex-direction:column;gap:10px;justify-content:flex-end;padding-bottom:22px}
-.props{right:0}
-.order::before,.props::before{
-  content:"";position:fixed;top:0;bottom:0;width:calc(var(--side) + 26px);
+.rail > *{pointer-events:auto;flex:0 0 auto}
+/* 길어지는 건 치수 쪽뿐이다. 거기만 스크롤시키고 주문서·알림은 늘 보이게 둔다 */
+#props{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+#props::-webkit-scrollbar{display:none}
+.rail::before{
+  content:"";position:fixed;top:0;bottom:0;left:0;width:calc(var(--side) + 26px);
   pointer-events:none;z-index:-1;
+  background:linear-gradient(to right,rgba(241,241,241,.92) 0,rgba(241,241,241,.72) 62%,transparent 100%);
 }
-.order::before{left:0;background:linear-gradient(to right,rgba(241,241,241,.92) 0,rgba(241,241,241,.72) 62%,transparent 100%)}
-.props::before{right:0;background:linear-gradient(to left,rgba(241,241,241,.92) 0,rgba(241,241,241,.72) 62%,transparent 100%)}
+.props,.order{position:static;width:auto;height:auto;overflow:visible;background:none;border:0;padding:0}
+/* 아래로 밀면 내용이 길어질 때 알림이 잘린다 — 위에서부터 쌓는다 */
+.order{display:flex;flex-direction:column;gap:8px;
+  border-top:1px solid var(--line);padding-top:12px}
 .libtabs{display:flex;gap:2px;flex:0 0 auto}
 .libtabs button{
   height:30px;padding:0 12px;font-size:12.5px;color:var(--mute);
@@ -107,7 +111,7 @@ h3 small{text-transform:none;letter-spacing:0;color:var(--mute);font-weight:400}
 .sw.on{box-shadow:0 0 0 2px var(--ink)}
 .sw span{position:absolute;inset:auto 0 -16px;font-size:9px;text-align:center;color:var(--mute)}
 
-.row{display:grid;grid-template-columns:52px 1fr 58px 20px;gap:7px;align-items:center;margin:7px 0}
+.row{display:grid;grid-template-columns:52px 1fr 58px 20px;gap:7px;align-items:center;margin:5px 0}
 .row label{font-size:11.5px;color:var(--mute)}
 .row .u{font-size:10.5px;color:var(--mute)}
 .row input[type=number]{border:1px solid var(--line);padding:5px 6px;width:100%;background:rgba(255,255,255,.86);
@@ -142,11 +146,11 @@ input[type=range]{width:100%;accent-color:var(--ink);height:18px}
   background:rgba(250,250,250,.92);padding:2px 5px;border-radius:4px;white-space:nowrap;
 }
 #cube{
-  position:absolute;top:calc(var(--bar) + 6px);right:calc(var(--side) + 12px);
+  position:absolute;top:calc(var(--bar) + 6px);right:14px;
   width:120px;height:120px;z-index:4;cursor:pointer;
 }
 .viewctl{
-  position:absolute;top:calc(var(--bar) + 130px);right:calc(var(--side) + 12px);
+  position:absolute;top:calc(var(--bar) + 144px);right:14px;
   display:flex;gap:1px;flex-direction:column;z-index:4;
   background:rgba(250,250,250,.9);border:1px solid var(--line);padding:3px;
 }
@@ -155,8 +159,8 @@ input[type=range]{width:100%;accent-color:var(--ink);height:18px}
 .viewctl button.on{background:var(--ink);color:#fff}
 
 /* ── F. 검증 배너 ───────────────────────────── */
-.banner{position:absolute;left:calc(var(--side) + 12px);right:calc(var(--side) + 140px);
-  bottom:18px;display:grid;gap:5px;pointer-events:none}
+.banner{display:grid;gap:5px}
+.banner:empty{display:none}
 .msg{
   display:flex;align-items:center;gap:9px;padding:8px 10px;
   background:rgba(250,250,250,.96);border:1px solid var(--line);
@@ -175,15 +179,15 @@ input[type=range]{width:100%;accent-color:var(--ink);height:18px}
 /* ── G. 견적 바 ─────────────────────────────── */
 
 .otot{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
-.ometa{display:flex;flex-direction:column;gap:7px;margin-top:4px}
+.ometa{display:flex;flex-direction:column;gap:5px;margin-top:2px}
 .ometa > div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
-  border-bottom:1px solid var(--line);padding-bottom:6px}
+  border-bottom:1px solid var(--line);padding-bottom:4px}
 .ometa dt{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 .ometa dd{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
 .oacts{display:flex;gap:7px;align-items:center;margin-top:4px}
 .oacts .go{flex:1}
 .otot b{font-family:var(--mono);font-size:26px;font-weight:400;letter-spacing:.01em;
-  font-variant-numeric:tabular-nums;line-height:1.05}
+  font-variant-numeric:tabular-nums;line-height:1.05;white-space:nowrap}
 .delta{font-size:11.5px;font-family:var(--mono);color:var(--mute);opacity:0;transition:opacity .3s}
 .delta.show{opacity:1}
 .link{font-size:11.5px;color:var(--mute);text-decoration:underline;text-underline-offset:2px}
@@ -272,10 +276,15 @@ tfoot td{font-weight:700;background:#F0F0F0}
   .view{position:absolute;inset:var(--bar) 0 calc(var(--sheet) + 38px + var(--quote)) 0;transition:bottom .26s cubic-bezier(.4,0,.2,1)}
   #cube{top:calc(var(--bar) + 4px);right:8px;width:84px;height:84px}
   .viewctl{top:calc(var(--bar) + 94px);right:8px;left:auto}
-  .banner{bottom:calc(var(--quote) + 6px);left:8px;right:96px}
+  /* 시트 위로 띄운다 — 하단 바 기준으로 두면 시트에 가린다 */
+  .banner{position:absolute;left:8px;right:96px;z-index:19;pointer-events:none;
+    bottom:calc(var(--sheet) + 38px + var(--quote) + 8px);
+    transition:bottom .26s cubic-bezier(.4,0,.2,1)}
 
-  /* 좌·우 패널을 하단 시트 하나로 합친다 (명세서 §3-2) */
-  .order,.props{
+  /* 줄기를 풀어 셋을 각자 자리로 보낸다 — 치수는 시트, 주문서는 하단 바, 알림은 그 위 */
+  .rail{display:contents}
+  .props{
+    flex:none;min-height:0;
     position:absolute;left:0;right:0;top:auto;bottom:var(--quote);z-index:20;width:auto;
     border:0;border-top:1px solid var(--line);background:var(--panel);
     height:var(--sheet);padding:12px 14px 20px;
@@ -301,11 +310,13 @@ tfoot td{font-weight:700;background:#F0F0F0}
 
   .order{
     position:absolute;left:0;right:0;top:auto;bottom:0;width:auto;height:var(--quote);
+    margin-top:0;border-top:1px solid var(--line);padding-top:0;
     flex-direction:row;align-items:center;gap:10px;padding:0 10px;z-index:22;
     overflow:visible;justify-content:flex-start;
   }
   .order::before{display:none}
   .order .link,.ometa{display:none}
+  .otot{flex-wrap:nowrap;align-items:baseline;min-width:0}
   .otot b{font-size:19px}
   .oacts{margin-top:0;margin-left:auto}
   .oacts .go{flex:0 0 auto}

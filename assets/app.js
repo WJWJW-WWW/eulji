@@ -246,6 +246,7 @@ function placeLabels() {
 const CSSVAR = (n) => parseInt(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
 const SIDE = CSSVAR("--side") || 258;
 const BARS = (CSSVAR("--bar") || 52) + (CSSVAR("--quote") || 66);
+const CUBE_COL = 150;   // 큐브 + 뷰 컨트롤이 쓰는 오른쪽 폭
 function fitDistance() {
   const w = design.w / 1000, d = design.d / 1000, h = design.h / 1000;
   const r = viewEl.getBoundingClientRect();
@@ -253,7 +254,8 @@ function fitDistance() {
      카메라가 가구 안으로 들어가 버린다 — 그때는 직전 종횡비를 쓴다. */
   const ok = r.width > 40 && r.height > 40;   // 레이아웃이 덜 잡힌 값은 쓰지 않는다
   // 좌우 패널이 캔버스를 덮으므로, 가구는 그 사이에 들어와야 한다
-  const visW = isMobile() ? r.width : Math.max(r.width * 0.42, r.width - SIDE * 2);
+  // 왼쪽은 줄기, 오른쪽은 시점 큐브가 덮는다
+  const visW = isMobile() ? r.width : Math.max(r.width * 0.42, r.width - SIDE - CUBE_COL);
   const visH = isMobile() ? r.height : Math.max(r.height * 0.5, r.height - BARS);
   const aspect = ok ? visW / visH : camera.aspect;
   const tanV = Math.tan((camera.fov * Math.PI) / 360);
