@@ -37,6 +37,13 @@
       <button id="mode-free">자유</button>
     </div>
 
+    <nav class="libtabs" id="lib-tabs" aria-label="부품 라이브러리">
+      <button data-tab="preset">프리셋 <span class="car">▾</span></button>
+      <button data-tab="frame">프레임 <span class="car">▾</span></button>
+      <button data-tab="panel">패널 <span class="car">▾</span></button>
+      <button data-tab="leg">다리 <span class="car">▾</span></button>
+    </nav>
+
     <div class="grp right">
       <button id="nav-save" class="tb">저장</button>
       <button id="nav-share" class="tb">공유</button>
@@ -48,36 +55,25 @@
   <div class="body">
 
     <!-- B. 부품·프리셋 라이브러리 ─────────────────────── -->
-    <aside class="lib" id="lib">
-      <nav class="tabs" id="lib-tabs">
-        <button data-tab="preset" class="on">프리셋</button>
-        <button data-tab="frame">프레임</button>
-        <button data-tab="panel">패널</button>
-        <button data-tab="leg">다리</button>
-      </nav>
+    <!-- B. 주문서 (좌측) ─────────────────────────────── -->
+    <aside class="order" id="order">
+      <div class="otot">
+        <span class="mono">Total</span>
+        <b id="q-total">—</b>
+        <span id="q-delta" class="delta"></span>
+      </div>
+      <button class="link" id="q-breakdown">견적 상세</button>
 
-      <section data-pane="preset">
-        <p class="hint">백지에서 시작하지 않습니다. 가까운 것을 고르고 치수를 바꾸세요.</p>
-        <div class="cards" id="preset-cards"></div>
-      </section>
+      <dl class="ometa">
+        <div><dt>납기</dt><dd id="q-lead">—</dd></div>
+        <div><dt>무게</dt><dd id="q-weight">—</dd></div>
+        <div><dt>부재</dt><dd id="q-parts">—</dd></div>
+      </dl>
 
-      <section data-pane="frame" hidden>
-        <h3>프로파일 규격</h3>
-        <div class="cards" id="series-cards"></div>
-        <h3>마감</h3>
-        <div class="swatches" id="finish-sw"></div>
-      </section>
-
-      <section data-pane="panel" hidden>
-        <h3>기본 면재</h3>
-        <div class="cards" id="material-cards"></div>
-        <p class="hint" id="material-note"></p>
-      </section>
-
-      <section data-pane="leg" hidden>
-        <h3>바닥 마감</h3>
-        <p class="hint">수평조절풋이 기본 포함됩니다. 캐스터·테이퍼드 레그는 정식 런칭 때 열립니다.</p>
-      </section>
+      <div class="oacts">
+        <button class="tb" id="q-bom">부품표</button>
+        <button class="go" id="q-cart">장바구니 담기</button>
+      </div>
     </aside>
 
     <!-- C. 3D 뷰포트 ─────────────────────────────────── -->
@@ -158,30 +154,39 @@
     </aside>
   </div>
 
-  <!-- G. 견적 바 ───────────────────────────────────── -->
-  <footer class="quote">
-    <div class="total">
-      <span class="mono tlabel">Total</span>
-      <b id="q-total">—</b>
-      <span id="q-delta" class="delta"></span>
-      <button class="link" id="q-breakdown">견적 상세</button>
+
+
+  <!-- 상단 라이브러리 팝오버 -->
+  <div class="libpop" id="libpop" hidden>
+      <section data-pane="preset">
+      <p class="hint">백지에서 시작하지 않습니다. 가까운 것을 고르고 치수를 바꾸세요.</p>
+      <div class="cards" id="preset-cards"></div>
+    </section>
+
+    <section data-pane="frame" hidden>
+      <h3>프로파일 규격</h3>
+      <div class="cards" id="series-cards"></div>
+      <h3>마감</h3>
+      <div class="swatches" id="finish-sw"></div>
+    </section>
+
+    <section data-pane="panel" hidden>
+      <h3>기본 면재</h3>
+      <div class="cards" id="material-cards"></div>
+      <p class="hint" id="material-note"></p>
+    </section>
+
+    <section data-pane="leg" hidden>
+      <h3>바닥 마감</h3>
+      <p class="hint">수평조절풋이 기본 포함됩니다. 캐스터·테이퍼드 레그는 정식 런칭 때 열립니다.</p>
+    </section>
     </div>
-    <dl class="meta">
-      <div><dt>납기</dt><dd id="q-lead">—</dd></div>
-      <div><dt>무게</dt><dd id="q-weight">—</dd></div>
-      <div><dt>부재</dt><dd id="q-parts">—</dd></div>
-    </dl>
-    <div class="acts">
-      <button class="tb" id="q-bom">부품표</button>
-      <button class="go" id="q-cart">장바구니 담기</button>
-    </div>
-  </footer>
 
   <!-- 모바일 하단 시트 — 좌·우 패널을 탭 하나로 합친다 (명세서 §3-2) -->
   <div class="sheetbar" id="sheetbar">
     <button class="grip" id="grip" aria-label="패널 크기 바꾸기"><span></span></button>
     <div class="sheettabs">
-      <button data-sheetpane="lib">부품·프리셋</button>
+      <button data-sheetpane="order">주문서</button>
       <button data-sheetpane="props" class="on">치수·옵션</button>
     </div>
   </div>

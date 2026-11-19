@@ -251,7 +251,7 @@ function fitDistance() {
   const r = viewEl.getBoundingClientRect();
   /* 레이아웃이 잡히기 전에는 높이가 0 이다. 그대로 나누면 화각이 폭발해
      카메라가 가구 안으로 들어가 버린다 — 그때는 직전 종횡비를 쓴다. */
-  const ok = r.width > 1 && r.height > 1;
+  const ok = r.width > 40 && r.height > 40;   // 레이아웃이 덜 잡힌 값은 쓰지 않는다
   // 좌우 패널이 캔버스를 덮으므로, 가구는 그 사이에 들어와야 한다
   const visW = isMobile() ? r.width : Math.max(r.width * 0.42, r.width - SIDE * 2);
   const visH = isMobile() ? r.height : Math.max(r.height * 0.5, r.height - BARS);
@@ -523,7 +523,7 @@ function renderLib() {
   const pc = $("#preset-cards"); pc.innerHTML = "";
   for (const [k, p] of Object.entries(C.PRESETS))
     pc.append(card(design.preset === k, p.label, `${p.w}×${p.d}×${p.h} · ${p.cols}칸 ${p.rows}단`,
-      () => apply({ ...C.PRESETS[k], preset: k, removed: [], colWidths: null, rowHeights: null })));
+      () => { apply({ ...C.PRESETS[k], preset: k, removed: [], colWidths: null, rowHeights: null }); closeLib(); }));
 
   const sc2 = $("#series-cards"); sc2.innerHTML = "";
   for (const [k, s] of Object.entries(C.SERIES))
@@ -934,11 +934,37 @@ $("#sel-clear").onclick = () => select(null);
 $("#bar-clear").onclick = () => selectBar(null);
 
 // ── 탭 · 뷰 컨트롤 ──────────────────────────────────────────
+/* 라이브러리는 상단 탭에서 내려온다. 같은 탭을 다시 누르면 닫히고,
+   바깥을 누르거나 Esc 로도 닫힌다 — 3D 를 가리고 있을 이유가 없다. */
+const libpop = $("#libpop");
+function openLib(tab) {
+  const same = tab && tab === libpop.dataset.tab && !libpop.hidden;
+  if (!tab || same) { closeLib(); return; }
+  libpop.dataset.tab = tab;
+  libpop.hidden = false;
+  $$("#lib-tabs button").forEach((x) => x.classList.toggle("on", x.dataset.tab === tab));
+  $$("#libpop [data-pane]").forEach((s) => s.hidden = s.dataset.pane !== tab);
+  const btn = $(`#lib-tabs button[data-tab="${tab}"]`);
+  if (btn && !isMobile()) {
+    const r = btn.getBoundingClientRect();
+    libpop.style.left = Math.max(10, Math.min(r.left, innerWidth - libpop.offsetWidth - 10)) + "px";
+    libpop.style.right = "auto";
+  } else { libpop.style.left = ""; libpop.style.right = ""; }
+}
+function closeLib() {
+  libpop.hidden = true;
+  libpop.dataset.tab = "";
+  $$("#lib-tabs button").forEach((x) => x.classList.remove("on"));
+}
 $("#lib-tabs").onclick = (e) => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
-  $$("#lib-tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  $$("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== b.dataset.tab);
+  openLib(b.dataset.tab);
 };
+addEventListener("pointerdown", (e) => {
+  if (libpop.hidden) return;
+  if (e.target.closest("#libpop") || e.target.closest("#lib-tabs")) return;
+  closeLib();
+}, true);
 $("#v-reset").onclick = () => fit("iso");
 $("#v-fit").onclick = () => fitDir(camera.position.clone().sub(controls.target));
 $("#v-grid").onclick = (e) => { grid.visible = !grid.visible; e.currentTarget.classList.toggle("on", grid.visible); };
@@ -951,13 +977,15 @@ let sheet = 0;
 const isMobile = () => matchMedia("(max-width:860px)").matches;
 function setSheet(n) { sheet = n; document.body.dataset.sheet = n; setTimeout(resize, 290); }
 function setPane(p) {
-  document.body.dataset.pane = p;
+  document.body.dataset.sheetPane = p;
   $$("[data-sheetpane]").forEach((b) => b.classList.toggle("on", b.dataset.sheetpane === p));
+  // 주문서는 모바일에서 늘 하단에 보이므로 시트를 열 필요가 없다
+  if (p === "order") { setSheet(0); return; }
   if (sheet === 0 && isMobile()) setSheet(1);
 }
 $("#grip").onclick = () => setSheet(sheet === 2 ? 1 : sheet + 1);
 $$("[data-sheetpane]").forEach((b) => b.onclick = () => setPane(b.dataset.sheetpane));
-document.body.dataset.pane = "props";
+document.body.dataset.sheetPane = "props";
 $$("[data-sheetpane]").forEach((b) => b.classList.toggle("on", b.dataset.sheetpane === "props"));
 setSheet(isMobile() ? 1 : 0);
 matchMedia("(max-width:860px)").addEventListener("change", (e) => {
@@ -969,7 +997,7 @@ addEventListener("keydown", (e) => {
   if (e.target.matches("input,textarea")) return;
   const meta = e.metaKey || e.ctrlKey;
   if (meta && e.key.toLowerCase() === "z") { e.preventDefault(); (e.shiftKey ? $("#nav-redo") : $("#nav-undo")).click(); }
-  if (e.key === "Escape") { select(null); selectBar(null); }
+  if (e.key === "Escape") { closeLib(); select(null); selectBar(null); }
 });
 
 // ── 시작 ────────────────────────────────────────────────────
