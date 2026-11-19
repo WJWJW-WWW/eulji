@@ -39,12 +39,61 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 0.92;
+
+/* 질감은 텍스처 파일이 아니라 캔버스로 만든다. 에셋이 늘면 배포가 무거워지고,
+   어차피 필요한 건 사진이 아니라 "완전히 매끈하지 않다"는 미세한 흔들림이다. */
+function canvasTex(w, h, draw, repeat = [1, 1]) {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  draw(c.getContext("2d"), w, h);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeat[0], repeat[1]);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// 압출 방향으로 흐르는 헤어라인 — 알루미늄이 거울이 아니라 금속으로 보이게 하는 것
+const texBrushed = canvasTex(256, 256, (g, w, h) => {
+  g.fillStyle = "#7d7d7d"; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 3000; i++) {
+    const y = Math.random() * h, v = 104 + Math.random() * 78;
+    g.strokeStyle = `rgb(${v},${v},${v})`;
+    g.lineWidth = 0.4 + Math.random() * 0.9;
+    g.beginPath(); g.moveTo(Math.random() * w, y); g.lineTo(Math.random() * w, y); g.stroke();
+  }
+}, [1, 10]);
+
+// 면재의 미세한 요철 — 이게 없으면 패널이 색종이처럼 보인다
+const texGrain = canvasTex(256, 256, (g, w, h) => {
+  const img = g.createImageData(w, h);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 128 + (Math.random() - 0.5) * 30;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+}, [4, 4]);
+
+// 바닥 접지 그림자 — 그림자맵만으론 가구가 떠 보인다
+const texContact = canvasTex(256, 256, (g, w, h) => {
+  const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  r.addColorStop(0, "rgba(0,0,0,0.5)");
+  r.addColorStop(0.5, "rgba(0,0,0,0.16)");
+  r.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = r; g.fillRect(0, 0, w, h);
+});
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xE9E6E0);
+// 평평한 단색 대신 위에서 아래로 떨어지는 스튜디오 스윕
+scene.background = canvasTex(4, 256, (g, w, h) => {
+  const lg = g.createLinearGradient(0, 0, 0, h);
+  lg.addColorStop(0, "#F7F7F7"); lg.addColorStop(0.62, "#EDEDED"); lg.addColorStop(1, "#DCDCDC");
+  g.fillStyle = lg; g.fillRect(0, 0, w, h);
+});
 { const p = new THREE.PMREMGenerator(renderer);       // 금속은 환경맵이 없으면 새까맣게 나온다
   scene.environment = p.fromScene(new RoomEnvironment(), 0.04).texture; p.dispose(); }
+scene.environmentIntensity = 0.55;
 
 const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 80);
 camera.up.set(0, 0, 1);                                // 설계 좌표계가 Z-up 이라 맞춰둔다
@@ -53,14 +102,24 @@ controls.enableDamping = true; controls.dampingFactor = 0.08;
 controls.minDistance = 0.5; controls.maxDistance = 14;
 controls.maxPolarAngle = Math.PI * 0.52;
 
-const key = new THREE.DirectionalLight(0xffffff, 2.1);
-key.position.set(-2.4, -3.0, 4.2); key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
-const sc = key.shadow.camera; sc.left = -3; sc.right = 3; sc.top = 3; sc.bottom = -3; sc.near = 0.5; sc.far = 14;
-scene.add(key, new THREE.DirectionalLight(0xffffff, 0.5).translateY(4), new THREE.AmbientLight(0xffffff, 0.25));
+const key = new THREE.DirectionalLight(0xffffff, 1.45);
+key.position.set(-1.9, 2.2, 4.8); key.castShadow = true;   // 뒤쪽에서 쏴야 그림자가 카메라 쪽으로 떨어진다
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.radius = 4; key.shadow.bias = -0.0004;
+const sc = key.shadow.camera; sc.left = -2.4; sc.right = 2.4; sc.top = 2.4; sc.bottom = -2.4; sc.near = 0.5; sc.far = 14;
+sc.updateProjectionMatrix();   // 값만 바꾸면 투영행렬이 안 따라온다
 
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.17 }));
+const fill = new THREE.DirectionalLight(0xffffff, 0.42); fill.position.set(3.0, -2.0, 1.4);
+const rim  = new THREE.DirectionalLight(0xffffff, 1.15); rim.position.set(2.4, 2.6, 1.3);  // 블랙 아노다이징의 모서리 선
+scene.add(key, fill, rim, new THREE.AmbientLight(0xffffff, 0.10));
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.2 }));
 ground.receiveShadow = true; scene.add(ground);
+
+const contact = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
+  map: texContact, transparent: true, depthWrite: false, opacity: 0.5,
+}));
+contact.position.z = 0.002; contact.renderOrder = -1; scene.add(contact);
 const grid = new THREE.GridHelper(12, 48, 0xC9C2B4, 0xDCD6C9);
 grid.rotation.x = Math.PI / 2; grid.visible = false; scene.add(grid);
 
@@ -80,6 +139,12 @@ function profileGeo(series) {
 }
 
 const panelGeo = new THREE.BoxGeometry(1, 1, 1);
+const selBox = new THREE.LineSegments(
+  new THREE.EdgesGeometry(panelGeo),
+  new THREE.LineBasicMaterial({ color: 0x0D0D0D, depthTest: false, transparent: true, opacity: 0.85 }),
+);
+selBox.visible = false; selBox.renderOrder = 10; scene.add(selBox);
+let selMesh = null;
 let matAlu, panelMeshes = [], allMeshes = [], exploding = false, explodeT = 0;
 
 function rebuild() {
@@ -87,7 +152,11 @@ function rebuild() {
   const parts = C.buildParts(design);
   const F = C.FINISHES[design.finish];
 
-  matAlu = new THREE.MeshStandardMaterial({ color: F.color, metalness: 1, roughness: F.rough });
+  matAlu = new THREE.MeshPhysicalMaterial({
+    color: F.color, metalness: 1, roughness: F.rough,
+    roughnessMap: texBrushed,
+    anisotropy: 0.7, anisotropyRotation: Math.PI / 2,   // 결이 길이 방향으로 눕는다
+  });
 
   const geo = profileGeo(design.series);
   for (const b of parts.bars) {
@@ -101,9 +170,14 @@ function rebuild() {
   }
   for (const p of parts.panels) {
     const PM = C.MATERIALS[p.material];                 // 칸마다 소재가 다를 수 있다
-    const m = new THREE.Mesh(panelGeo, new THREE.MeshStandardMaterial({
-      color: PM.color, metalness: p.material === "acrylic" ? 0.1 : 0,
-      roughness: p.material === "acrylic" ? 0.25 : 0.62,
+    const m = new THREE.Mesh(panelGeo, new THREE.MeshPhysicalMaterial({
+      color: PM.color, metalness: 0,
+      roughness: p.material === "oak" ? 0.72 : 0.56,
+      roughnessMap: texGrain,
+      clearcoat: p.material === "oak" ? 0 : 0.18,       // 멜라민의 얕은 광
+      clearcoatRoughness: 0.4,
+      sheen: p.material === "charcoal" ? 0.25 : 0,      // 어두운 면은 스침광이 있어야 형태가 보인다
+      sheenColor: new THREE.Color(0x6A6A6A),
     }));
     m.position.set(p.pos[0] / 1000, p.pos[1] / 1000, p.pos[2] / 1000);
     m.scale.set(p.w / 1000, p.d / 1000, p.t / 1000);
@@ -119,6 +193,7 @@ function rebuild() {
     m.castShadow = true; root.add(m);
   }
   root.position.set(-design.w / 2000, -design.d / 2000, 0);
+  contact.scale.set(design.w / 1000 * 1.3, design.d / 1000 * 2.4, 1);
   for (const m of root.children) { m.userData.base = m.position.clone(); allMeshes.push(m); }
 
   markSelection();
@@ -217,6 +292,7 @@ renderer.setAnimationLoop(() => {
       m.position.copy(b).add(b.clone().setZ(b.z - design.h / 3000).multiplyScalar(0.42 * explodeT));
     }
   }
+  if (selMesh) selMesh.getWorldPosition(selBox.position);
   controls.update();
   renderer.render(scene, camera);
   placeLabels();
@@ -239,11 +315,11 @@ function select(cell) {
   if (cell && isMobile()) setPane("props");
 }
 function markSelection() {
-  for (const m of panelMeshes) {
-    const on = selected && m.userData.cell.level === selected.level && m.userData.cell.bay === selected.bay;
-    m.material.emissive.setHex(on ? 0x3A5F8A : 0x000000);
-    m.material.emissiveIntensity = on ? 0.35 : 0;
-  }
+  selMesh = selected
+    ? panelMeshes.find((m) => m.userData.cell.level === selected.level && m.userData.cell.bay === selected.bay)
+    : null;
+  selBox.visible = !!selMesh;
+  if (selMesh) selBox.scale.copy(selMesh.scale);
 }
 
 // ── 라이브러리 (B) ──────────────────────────────────────────
@@ -643,3 +719,4 @@ if (design.name) $("#nav-title").value = design.name;
 $("#cart-n").textContent = JSON.parse(localStorage.getItem("eulji.cart") || "[]").length;
 resize(); refresh(); fit("iso", false); syncHistory();
 if (!localStorage.getItem("eulji.seen")) { $("#m-help").showModal(); localStorage.setItem("eulji.seen", "1"); }
+

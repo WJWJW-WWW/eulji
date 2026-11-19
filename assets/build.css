@@ -1,6 +1,8 @@
 :root{
-  --paper:#F2EFE9; --panel:#FBFAF7; --ink:#16150F; --mute:#8C887E; --line:#E2DDD2;
-  --ok:#2F6B4F; --warn:#9A6B12; --err:#A6372C; --tip:#5B5750;
+  /* 완전 무채색. 색은 오로지 차단(Error) 한 곳에만 쓴다 — 그래야 빨간색이 실제로 경고로 읽힌다 */
+  --paper:#F1F1F1; --panel:#FAFAFA; --ink:#0D0D0D; --mute:#8A8A8A; --line:#E0E0E0;
+  --hover:#EAEAEA; --sunken:#E9E9E9;
+  --warn:#4A4A4A; --err:#9B2C20; --info:#2E2E2E; --tip:#9A9A9A;
   --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
   --bar:52px; --quote:64px; --side:252px;
@@ -36,10 +38,10 @@ h3 small{text-transform:none;letter-spacing:0;color:var(--mute);font-weight:400}
 .grp.right{margin-left:auto}
 .ib{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:14px}
 .tb{height:30px;padding:0 11px;border-radius:7px;font-size:12.5px;white-space:nowrap}
-.ib:hover,.tb:hover{background:#ECE8E0}
+.ib:hover,.tb:hover{background:var(--sunken)}
 .ib:disabled{opacity:.3;cursor:default}.ib:disabled:hover{background:none}
 .cart{border:1px solid var(--line)}
-.mode{display:flex;background:#ECE8E0;border-radius:8px;padding:2px}
+.mode{display:flex;background:var(--sunken);border-radius:8px;padding:2px}
 .mode button{height:26px;padding:0 13px;border-radius:6px;font-size:12.5px;color:var(--mute)}
 .mode button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.07)}
 
@@ -49,7 +51,7 @@ h3 small{text-transform:none;letter-spacing:0;color:var(--mute);font-weight:400}
 .lib,.props{background:var(--panel);overflow-y:auto;padding:12px;min-height:0}
 .lib{border-right:1px solid var(--line)}
 .props{border-left:1px solid var(--line)}
-.tabs{display:flex;gap:2px;margin-bottom:12px;background:#ECE8E0;border-radius:8px;padding:2px}
+.tabs{display:flex;gap:2px;margin-bottom:12px;background:var(--sunken);border-radius:8px;padding:2px}
 .tabs button{flex:1;height:27px;border-radius:6px;font-size:12px;color:var(--mute)}
 .tabs button.on{background:#fff;color:var(--ink);font-weight:600}
 
@@ -58,9 +60,9 @@ h3 small{text-transform:none;letter-spacing:0;color:var(--mute);font-weight:400}
   display:flex;align-items:center;gap:9px;padding:9px;border:1px solid var(--line);
   border-radius:9px;background:#fff;text-align:left;width:100%;
 }
-.card:hover{border-color:#C9C2B4}
+.card:hover{border-color:#C4C4C4}
 .card.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-.card .ico{width:30px;height:30px;border-radius:6px;flex:0 0 auto;background:#EDE9E1}
+.card .ico{width:30px;height:30px;border-radius:6px;flex:0 0 auto;background:var(--sunken)}
 .card .nm{font-weight:600;font-size:12.5px}
 .card .sub{font-size:11px;color:var(--mute);font-family:var(--mono)}
 
@@ -93,36 +95,37 @@ input[type=range]{width:100%;accent-color:var(--ink);height:18px}
 .x{float:right;color:var(--mute);font-size:12px}
 
 /* ── C. 뷰포트 ──────────────────────────────── */
-.view{position:relative;min-width:0;background:#E9E6E0}
+.view{position:relative;min-width:0;background:#EDEDED}
 #cv{display:block;width:100%;height:100%}
 .labels{position:absolute;inset:0;pointer-events:none}
 .labels span{
   position:absolute;transform:translate(-50%,-50%);
-  font-family:var(--mono);font-size:10.5px;color:#4A463D;
-  background:rgba(250,249,246,.9);padding:2px 5px;border-radius:4px;white-space:nowrap;
+  font-family:var(--mono);font-size:10.5px;color:#3A3A3A;
+  background:rgba(250,250,250,.92);padding:2px 5px;border-radius:4px;white-space:nowrap;
 }
 .viewctl{
   position:absolute;top:10px;right:10px;display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end;
-  background:rgba(251,250,247,.92);border:1px solid var(--line);border-radius:9px;padding:3px;max-width:200px;
+  background:rgba(250,250,250,.94);border:1px solid var(--line);border-radius:9px;padding:3px;max-width:200px;
 }
 .viewctl button{min-width:28px;height:26px;padding:0 6px;border-radius:6px;font-size:11px;color:var(--mute)}
-.viewctl button:hover{background:#ECE8E0;color:var(--ink)}
+.viewctl button:hover{background:var(--sunken);color:var(--ink)}
 .viewctl button.on{background:var(--ink);color:#fff}
 
 /* ── F. 검증 배너 ───────────────────────────── */
 .banner{position:absolute;left:10px;right:10px;bottom:10px;display:grid;gap:5px;pointer-events:none}
 .msg{
   display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;
-  background:rgba(251,250,247,.96);border:1px solid var(--line);
+  background:rgba(250,250,250,.96);border:1px solid var(--line);
   border-left:3px solid var(--line);font-size:12px;pointer-events:auto;
 }
 .msg .id{font-family:var(--mono);font-size:9.5px;color:var(--mute);flex:0 0 auto}
 .msg .tx{flex:1;min-width:0}
 .msg .fix{border:1px solid currentColor;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:600;white-space:nowrap}
-.msg.error{border-left-color:var(--err);color:var(--err)}
-.msg.warn{border-left-color:var(--warn);color:var(--warn)}
-.msg.info{border-left-color:#3A5F8A;color:#3A5F8A}
-.msg.tip{border-left-color:var(--tip);color:var(--tip)}
+/* 색을 뺐으니 심각도는 선의 굵기로 구분한다. 색은 차단에만 남긴다 */
+.msg.error{border-left:5px solid var(--err);color:var(--err)}
+.msg.warn{border-left:5px solid var(--warn);color:var(--warn)}
+.msg.info{border-left:2px solid var(--info);color:var(--info)}
+.msg.tip{border-left:2px dotted var(--tip);color:var(--tip)}
 .msg .tx b{font-weight:600}
 
 /* ── G. 견적 바 ─────────────────────────────── */
@@ -150,21 +153,21 @@ dialog{
   border:0;border-radius:14px;padding:20px;max-width:min(560px,92vw);width:100%;margin:auto;
   background:var(--panel);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.2);
 }
-dialog::backdrop{background:rgba(22,21,15,.38)}
+dialog::backdrop{background:rgba(10,10,10,.4)}
 dialog h2{font-size:17px;letter-spacing:-.025em;margin-bottom:6px}
 dialog .row{grid-template-columns:72px 1fr 20px}
 dialog menu{display:flex;gap:7px;justify-content:flex-end;margin-top:18px;list-style:none}
 dialog details{margin-top:12px}
 dialog summary{font-size:11.5px;color:var(--mute);cursor:pointer}
-.tips,.steps{margin:8px 0 0 16px;font-size:12px;color:#4A463D;line-height:1.75}
+.tips,.steps{margin:8px 0 0 16px;font-size:12px;color:#3A3A3A;line-height:1.75}
 .steps{line-height:1.6} .steps li{margin-bottom:8px}
 .tablewrap{max-height:48vh;overflow:auto;border:1px solid var(--line);border-radius:9px;margin-top:10px}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-th{position:sticky;top:0;background:#EDE9E1;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
+th{position:sticky;top:0;background:var(--sunken);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
 td.n,th.n{text-align:right;font-family:var(--mono)}
 tr:last-child td{border-bottom:0}
-tfoot td{font-weight:700;background:#F5F2EC}
+tfoot td{font-weight:700;background:#F0F0F0}
 .confirm{border:1px solid var(--line);border-radius:9px;padding:12px;margin:12px 0;background:#fff;font-size:12.5px;line-height:1.8}
 .confirm b{font-family:var(--mono)}
 .check{display:flex;gap:8px;align-items:flex-start;margin:8px 0;font-size:12.5px;cursor:pointer}
@@ -229,8 +232,8 @@ tfoot td{font-weight:700;background:#F5F2EC}
     transition:bottom .26s cubic-bezier(.4,0,.2,1);
   }
   .grip{width:44px;height:100%;display:grid;place-items:center;flex:0 0 auto}
-  .grip span{display:block;width:26px;height:4px;border-radius:2px;background:#C3BCAE}
-  .sheettabs{display:flex;gap:2px;flex:1;background:#ECE8E0;border-radius:8px;padding:2px}
+  .grip span{display:block;width:26px;height:4px;border-radius:2px;background:#C4C4C4}
+  .sheettabs{display:flex;gap:2px;flex:1;background:var(--sunken);border-radius:8px;padding:2px}
   .sheettabs button{flex:1;height:26px;border-radius:6px;font-size:12px;color:var(--mute)}
   .sheettabs button.on{background:#fff;color:var(--ink);font-weight:600}
 

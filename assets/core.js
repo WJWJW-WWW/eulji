@@ -24,11 +24,14 @@ export const PANEL_CUT_WON = 1200; // 패널 재단 1장
 export const EDGE_WON = 1600;      // 엣지 마감 1m
 export const PACK_BASE = 6000, PACK_PER5 = 1200;
 
+/* 면재는 무채색 4단계로 간다. 미드센추리의 색감은 나뭇결이 아니라
+   비율과 그림자에서 나오고, 프레임이 블랙 아노다이징이라 면재까지 색을 넣으면
+   화면이 지저분해진다. 오크만 하나 남겨 질감 대비를 준다. */
 export const MATERIALS = {
-  lpm:     { label: "LPM 화이트",   won: 28000, color: 0xE8E6E0, kgM2: 11.5 },
-  birch:   { label: "HPL 자작",     won: 46000, color: 0xD6C3A2, kgM2: 12.0 },
-  walnut:  { label: "월넛",         won: 72000, color: 0x5A4330, kgM2: 12.6 },
-  acrylic: { label: "컬러 아크릴",  won: 95000, color: 0xC66A4A, kgM2: 14.3 },
+  white:    { label: "화이트",      won: 28000, color: 0xE4E4E2, kgM2: 11.5 },
+  grey:     { label: "라이트 그레이", won: 31000, color: 0xA6A6A4, kgM2: 11.5 },
+  charcoal: { label: "차콜",        won: 36000, color: 0x2E2E30, kgM2: 11.8 },
+  oak:      { label: "화이트 오크",  won: 62000, color: 0xC4B9A7, kgM2: 12.4 },
 };
 
 export const FINISHES = {
@@ -38,9 +41,9 @@ export const FINISHES = {
 };
 
 export const PRESETS = {
-  desk:      { label: "데스크",     w: 1200, d: 600, h: 740,  cols: 2, rows: 2, material: "birch" },
-  shelf:     { label: "선반",       w: 900,  d: 350, h: 1800, cols: 1, rows: 5, material: "lpm" },
-  sideboard: { label: "사이드보드", w: 1600, d: 400, h: 800,  cols: 2, rows: 3, material: "walnut" },
+  desk:      { label: "데스크",     w: 1200, d: 600, h: 740,  cols: 2, rows: 2, material: "oak" },
+  shelf:     { label: "선반",       w: 900,  d: 350, h: 1800, cols: 1, rows: 5, material: "charcoal" },
+  sideboard: { label: "사이드보드", w: 1600, d: 400, h: 800,  cols: 2, rows: 3, material: "white" },
 };
 
 export const LIMITS = { w: [300, 2400], d: [250, 700], h: [300, 2100], cols: [1, 6], rows: [2, 6] };
@@ -80,7 +83,7 @@ export function normalize(d) {
   d.rows = clamp(Math.round(d.rows), LIMITS.rows);
   d.load = Math.max(0, Math.round(d.load));
   if (!BRACKET_WON[d.bracket]) d.bracket = "std";
-  if (!MATERIALS[d.material]) d.material = "lpm";
+  if (!MATERIALS[d.material]) d.material = "white";
   if (d.rowHeights && d.rowHeights.length !== d.rows) d.rowHeights = null;
 
   /* 칸 수가 줄면 범위 밖 키가 남는다. 그대로 두면 칸을 다시 늘렸을 때
