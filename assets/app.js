@@ -238,10 +238,18 @@ function placeLabels() {
 }
 
 // ── 카메라 ──────────────────────────────────────────────────
+const SIDE = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--side")) || 258;
 function fitDistance() {
   const w = design.w / 1000, d = design.d / 1000, h = design.h / 1000;
+  const r = viewEl.getBoundingClientRect();
+  /* 레이아웃이 잡히기 전에는 높이가 0 이다. 그대로 나누면 화각이 폭발해
+     카메라가 가구 안으로 들어가 버린다 — 그때는 직전 종횡비를 쓴다. */
+  const ok = r.width > 1 && r.height > 1;
+  // 좌우 패널이 캔버스를 덮으므로, 가구는 그 사이에 들어와야 한다
+  const visW = isMobile() ? r.width : Math.max(r.width * 0.42, r.width - SIDE * 2);
+  const aspect = ok ? visW / r.height : camera.aspect;
   const tanV = Math.tan((camera.fov * Math.PI) / 360);
-  const tanH = tanV * Math.max(0.35, camera.aspect);
+  const tanH = tanV * Math.max(0.35, aspect);
   const distW = (Math.max(w, d) / 2) * 1.45 / tanH;   // 가로가 잘리지 않을 거리 (아이소 각도에서 실루엣이 더 넓어진다)
   const distH = (Math.max(h, d) / 2) * 1.3 / tanV;    // 세로가 잘리지 않을 거리
   return Math.max(distW, distH) + d / 2;
@@ -719,5 +727,6 @@ $("#in-load").onchange = (e) => apply({ load: +e.target.value });
 if (design.name) $("#nav-title").value = design.name;
 $("#cart-n").textContent = JSON.parse(localStorage.getItem("eulji.cart") || "[]").length;
 resize(); refresh(); fit("iso", false); syncHistory();
+requestAnimationFrame(() => { resize(); fit("iso", false); });
 if (!localStorage.getItem("eulji.seen")) { $("#m-help").showModal(); localStorage.setItem("eulji.seen", "1"); }
 
