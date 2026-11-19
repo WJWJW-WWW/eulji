@@ -139,16 +139,18 @@ function profileGeo(series) {
 }
 
 const panelGeo = new THREE.BoxGeometry(1, 1, 1);
+const edgesPanel = new THREE.EdgesGeometry(panelGeo);
+let edgesBar = new THREE.EdgesGeometry(new THREE.BoxGeometry(0.021, 0.021, 1));
 const selBox = new THREE.LineSegments(
-  new THREE.EdgesGeometry(panelGeo),
-  new THREE.LineBasicMaterial({ color: 0x0D0D0D, depthTest: false, transparent: true, opacity: 0.85 }),
+  edgesPanel,
+  new THREE.LineBasicMaterial({ color: 0x0D0D0D, depthTest: false, transparent: true, opacity: 0.9 }),
 );
 selBox.visible = false; selBox.renderOrder = 10; scene.add(selBox);
 let selMesh = null;
-let matAlu, panelMeshes = [], allMeshes = [], exploding = false, explodeT = 0;
+let matAlu, panelMeshes = [], barMeshes = [], allMeshes = [], exploding = false, explodeT = 0;
 
 function rebuild() {
-  root.clear(); panelMeshes = []; allMeshes = [];
+  root.clear(); panelMeshes = []; barMeshes = []; allMeshes = [];
   const parts = C.buildParts(design);
   const F = C.FINISHES[design.finish];
 
@@ -158,6 +160,8 @@ function rebuild() {
     anisotropy: 0.7, anisotropyRotation: Math.PI / 2,   // 결이 길이 방향으로 눕는다
   });
 
+  const S = C.SERIES[design.series];
+  edgesBar = new THREE.EdgesGeometry(new THREE.BoxGeometry(S.w / 1000 + 0.001, S.h / 1000 + 0.001, 1));
   const geo = profileGeo(design.series);
   for (const b of parts.bars) {
     const m = new THREE.Mesh(geo, matAlu);
@@ -166,7 +170,8 @@ function rebuild() {
     if (b.axis === "y") m.rotation.x = -Math.PI / 2;
     m.scale.z = b.len / 1000;
     m.castShadow = m.receiveShadow = true;
-    root.add(m);
+    m.userData.bar = b;
+    root.add(m); barMeshes.push(m);
   }
   for (const p of parts.panels) {
     const PM = C.MATERIALS[p.material];                 // 칸마다 소재가 다를 수 있다
@@ -238,7 +243,9 @@ function placeLabels() {
 }
 
 // ── 카메라 ──────────────────────────────────────────────────
-const SIDE = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--side")) || 258;
+const CSSVAR = (n) => parseInt(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
+const SIDE = CSSVAR("--side") || 258;
+const BARS = (CSSVAR("--bar") || 52) + (CSSVAR("--quote") || 66);
 function fitDistance() {
   const w = design.w / 1000, d = design.d / 1000, h = design.h / 1000;
   const r = viewEl.getBoundingClientRect();
@@ -247,11 +254,13 @@ function fitDistance() {
   const ok = r.width > 1 && r.height > 1;
   // 좌우 패널이 캔버스를 덮으므로, 가구는 그 사이에 들어와야 한다
   const visW = isMobile() ? r.width : Math.max(r.width * 0.42, r.width - SIDE * 2);
-  const aspect = ok ? visW / r.height : camera.aspect;
+  const visH = isMobile() ? r.height : Math.max(r.height * 0.5, r.height - BARS);
+  const aspect = ok ? visW / visH : camera.aspect;
   const tanV = Math.tan((camera.fov * Math.PI) / 360);
   const tanH = tanV * Math.max(0.35, aspect);
   const distW = (Math.max(w, d) / 2) * 1.45 / tanH;   // 가로가 잘리지 않을 거리 (아이소 각도에서 실루엣이 더 넓어진다)
-  const distH = (Math.max(h, d) / 2) * 1.3 / tanV;    // 세로가 잘리지 않을 거리
+  const vScale = ok && !isMobile() ? Math.max(0.5, (r.height - BARS) / r.height) : 1;
+  const distH = (Math.max(h, d) / 2) * 1.3 / (tanV * vScale);
   return Math.max(distW, distH) + d / 2;
 }
 function fit(view = "iso", animate = true) {
@@ -260,11 +269,19 @@ function fit(view = "iso", animate = true) {
   const dirs = {
     iso:   new THREE.Vector3(-0.72, -1, 0.52),
     front: new THREE.Vector3(0, -1, 0.06),
-    side:  new THREE.Vector3(-1, 0, 0.06),
+    back:  new THREE.Vector3(0, 1, 0.06),
+    left:  new THREE.Vector3(-1, 0, 0.06),
+    right: new THREE.Vector3(1, 0, 0.06),
     top:   new THREE.Vector3(0, -0.02, 1),
+    bottom:new THREE.Vector3(0, -0.02, -1),
   };
-  const target = new THREE.Vector3(0, 0, h / 2);
-  const pos = target.clone().add(dirs[view].clone().normalize().multiplyScalar(dist));
+  fitDir(dirs[view] ?? dirs.iso, animate);
+}
+/** 임의 방향에서 가구를 바라본다 — 뷰큐브가 이걸 쓴다 */
+function fitDir(dir, animate = true) {
+  const dist = fitDistance();
+  const target = new THREE.Vector3(0, 0, design.h / 2000);
+  const pos = target.clone().add(dir.clone().normalize().multiplyScalar(dist));
   if (animate) { camTo = { pos, target, t: 0 }; } else { camera.position.copy(pos); controls.target.copy(target); }
 }
 let camTo = null;
@@ -303,31 +320,196 @@ renderer.setAnimationLoop(() => {
   if (selMesh) selMesh.getWorldPosition(selBox.position);
   controls.update();
   renderer.render(scene, camera);
+  // 큐브는 본 카메라의 자세를 그대로 따라간다
+  cubeCam.position.copy(camera.position).sub(controls.target).normalize().multiplyScalar(8);
+  cubeCam.lookAt(0, 0, 0);
+  cubeR.render(cubeScene, cubeCam);
   placeLabels();
 });
 
-// ── 선택 ────────────────────────────────────────────────────
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-let downAt = null;
-canvas.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
-canvas.addEventListener("pointerup", (e) => {
-  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;  // 드래그는 선택이 아니다
+
+// ── 뷰큐브 ──────────────────────────────────────────────────
+/* 정/측/평 글자 버튼 대신 실제 큐브를 돌린다. 지금 어느 쪽에서 보고 있는지가
+   버튼 하이라이트보다 큐브의 자세로 훨씬 빨리 읽힌다. */
+const CUBE_FACES = [            // BoxGeometry 의 +X,-X,+Y,-Y,+Z,-Z 순서
+  { label: "우측면", dir: [1, 0, 0.06], tone: "#F2F2F2" },
+  { label: "좌측면", dir: [-1, 0, 0.06], tone: "#F2F2F2" },
+  { label: "뒷면",   dir: [0, 1, 0.06], tone: "#EDEDED" },
+  { label: "정면",   dir: [0, -1, 0.06], tone: "#FBFBFB" },
+  { label: "윗면",   dir: [0, -0.02, 1], tone: "#FFFFFF" },
+  { label: "아랫면", dir: [0, -0.02, -1], tone: "#E4E4E4" },
+];
+
+function faceTex(label, tone) {
+  return canvasTex(128, 128, (g, w, h) => {
+    g.fillStyle = tone; g.fillRect(0, 0, w, h);
+    g.strokeStyle = "#C9C9C9"; g.lineWidth = 3; g.strokeRect(1.5, 1.5, w - 3, h - 3);
+    g.fillStyle = "#1A1A1A";
+    g.font = "500 27px -apple-system,BlinkMacSystemFont,system-ui,sans-serif";
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(label, w / 2, h / 2);
+  });
+}
+
+const cubeCanvas = $("#cube");
+const cubeR = new THREE.WebGLRenderer({ canvas: cubeCanvas, antialias: true, alpha: true });
+cubeR.setPixelRatio(Math.min(devicePixelRatio, 2));
+const cubeScene = new THREE.Scene();
+const cubeCam = new THREE.OrthographicCamera(-1.4, 1.4, 1.4, -1.4, 0.1, 30);
+cubeCam.up.set(0, 0, 1);
+
+const cubeMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(1.55, 1.55, 1.55),
+  CUBE_FACES.map((f) => new THREE.MeshBasicMaterial({ map: faceTex(f.label, f.tone) })),
+);
+cubeScene.add(cubeMesh);
+cubeScene.add(new THREE.LineSegments(
+  new THREE.EdgesGeometry(cubeMesh.geometry),
+  new THREE.LineBasicMaterial({ color: 0x9A9A9A })));
+
+// 축 — 어느 쪽이 위이고 어느 쪽이 깊이인지 알려준다
+{
+  const o = -0.81, L = 0.58;
+  const axes = [[[L, 0, 0], 0xC2453A], [[0, L, 0], 0x4C9A5B], [[0, 0, L], 0x3F6FB5]];
+  for (const [v, col] of axes) {
+    const g = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(o, o, o), new THREE.Vector3(o + v[0], o + v[1], o + v[2])]);
+    cubeScene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: col })));
+  }
+}
+
+function sizeCube() {
+  const r = cubeCanvas.getBoundingClientRect();
+  if (r.width > 1) cubeR.setSize(r.width, r.height, false);
+}
+new ResizeObserver(sizeCube).observe(cubeCanvas);
+sizeCube();
+
+cubeCanvas.addEventListener("pointerdown", (e) => {
+  const r = cubeCanvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, cubeCam);
+  const hit = ray.intersectObject(cubeMesh, false)[0];
+  if (!hit) return;
+  const f = CUBE_FACES[Math.floor(hit.face.materialIndex ?? hit.faceIndex / 2)];
+  if (f) fitDir(new THREE.Vector3(...f.dir));
+});
+
+// ── 선택 ────────────────────────────────────────────────────
+let downAt = null, selectedBar = null, dragging = null;
+/* 끌 수 있는 부재인지. 양끝 기둥과 맨 위·아래 단은 외곽 치수가 잡고 있으므로
+   움직일 수 없다 — 그건 W/H 슬라이더의 몫이다. */
+function dragSpec(bar) {
+  if (!bar) return null;
+  if (bar.kind === "post" && bar.col > 0 && bar.col < design.cols)
+    return { axis: "x", index: bar.col };
+  if (bar.kind !== "post" && bar.level > 0 && bar.level < design.rows - 1)
+    return { axis: "z", index: bar.level };
+  return null;
+}
+
+const dragPlane = new THREE.Plane(), hitPt = new THREE.Vector3();
+
+canvas.addEventListener("pointerdown", (e) => {
+  downAt = [e.clientX, e.clientY];
+  const hit = pick(e, barMeshes);
+  const spec = hit && dragSpec(hit.object.userData.bar);
+  if (!spec) return;
+
+  const parts = C.buildParts(design);
+  const world = hit.object.getWorldPosition(new THREE.Vector3());
+  // 끌기 축을 품은 평면 위에서 포인터 위치를 읽는다
+  dragPlane.setFromNormalAndCoplanarPoint(
+    spec.axis === "x" ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0), world);
+
+  dragging = { ...spec, parts, before: clone(design) };
+  controls.enabled = false;
+  viewEl.classList.add(spec.axis === "x" ? "dragging" : "dragging-v");
+  canvas.setPointerCapture(e.pointerId);
+  selectBar(hit.object.userData.bar);
+});
+
+canvas.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
   const r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const hit = ray.intersectObjects(panelMeshes, false)[0];
-  select(hit ? hit.object.userData.cell : null);
+  if (!ray.ray.intersectPlane(dragPlane, hitPt)) return;
+
+  const { axis, index, parts } = dragging;
+  const M = C.MIN_SPAN;
+  if (axis === "x") {
+    const mm = C.snap((hitPt.x + design.w / 2000) * 1000);
+    const lo = parts.postX[index - 1] + M, hi = parts.postX[index + 1] - M;
+    if (hi < lo) return;
+    const x = Math.min(hi, Math.max(lo, mm));
+    const cw = [...parts.colW];
+    cw[index - 1] = x - parts.postX[index - 1];
+    cw[index] = parts.postX[index + 1] - x;
+    apply({ colWidths: cw }, { history: false });
+  } else {
+    const mm = C.snap(hitPt.z * 1000);
+    const lo = parts.zs[index - 1] + M, hi = parts.zs[index + 1] - M;
+    if (hi < lo) return;
+    const z = Math.min(hi, Math.max(lo, mm));
+    const g = [...parts.gaps];
+    g[index - 1] = z - parts.zs[index - 1];
+    g[index] = parts.zs[index + 1] - z;
+    apply({ rowHeights: g }, { history: false });
+  }
+});
+
+function endDrag(e) {
+  if (!dragging) return;
+  const before = dragging.before;
+  dragging = null;
+  controls.enabled = true;
+  viewEl.classList.remove("dragging", "dragging-v");
+  try { canvas.releasePointerCapture(e.pointerId); } catch {}
+  if (JSON.stringify(before) !== JSON.stringify(design)) { undo.push(before); redo.length = 0; syncHistory(); }
+  setTimeout(() => { downAt = null; }, 0);
+}
+canvas.addEventListener("pointerup", endDrag);
+canvas.addEventListener("pointercancel", endDrag);
+function pick(e, list) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  return ray.intersectObjects(list, false)[0];
+}
+canvas.addEventListener("pointerup", (e) => {
+  if (dragging) return;
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;  // 드래그는 선택이 아니다
+  const hit = pick(e, [...panelMeshes, ...barMeshes]);
+  if (!hit) { select(null); return; }
+  const u = hit.object.userData;
+  if (u.cell) select(u.cell); else selectBar(u.bar);
 });
 function select(cell) {
-  selected = cell; markSelection(); renderProps();
+  selected = cell; selectedBar = null; markSelection(); renderProps();
   if (cell && isMobile()) setPane("props");
 }
+function selectBar(bar) {
+  selectedBar = bar ?? null; selected = null; markSelection(); renderProps();
+  if (bar && isMobile()) setPane("props");
+}
 function markSelection() {
-  selMesh = selected
-    ? panelMeshes.find((m) => m.userData.cell.level === selected.level && m.userData.cell.bay === selected.bay)
-    : null;
+  if (selected) {
+    selMesh = panelMeshes.find((m) => m.userData.cell.level === selected.level && m.userData.cell.bay === selected.bay);
+  } else if (selectedBar) {
+    selMesh = barMeshes.find((m) => m.userData.bar.id === selectedBar.id);
+  } else selMesh = null;
+
   selBox.visible = !!selMesh;
-  if (selMesh) selBox.scale.copy(selMesh.scale);
+  if (!selMesh) return;
+  if (selected) { selBox.geometry = edgesPanel; selBox.scale.copy(selMesh.scale); selBox.rotation.set(0, 0, 0); }
+  else {
+    // 부재는 길이만 다른 같은 단면이라 외곽선도 같은 식으로 늘린다
+    selBox.geometry = edgesBar;
+    selBox.scale.set(1, 1, selMesh.scale.z);
+    selBox.rotation.copy(selMesh.rotation);
+  }
 }
 
 // ── 라이브러리 (B) ──────────────────────────────────────────
@@ -341,7 +523,7 @@ function renderLib() {
   const pc = $("#preset-cards"); pc.innerHTML = "";
   for (const [k, p] of Object.entries(C.PRESETS))
     pc.append(card(design.preset === k, p.label, `${p.w}×${p.d}×${p.h} · ${p.cols}칸 ${p.rows}단`,
-      () => apply({ ...C.PRESETS[k], preset: k, removed: [], rowHeights: null })));
+      () => apply({ ...C.PRESETS[k], preset: k, removed: [], colWidths: null, rowHeights: null })));
 
   const sc2 = $("#series-cards"); sc2.innerHTML = "";
   for (const [k, s] of Object.entries(C.SERIES))
@@ -379,9 +561,11 @@ function bindRange(k, lo, hi) {
   nm.onchange = (e) => set(e.target.value);
 }
 function renderProps() {
-  const isPanel = !!selected;
-  $("#props-design").hidden = isPanel;
+  const isPanel = !!selected, isBar = !!selectedBar;
+  $("#props-design").hidden = isPanel || isBar;
   $("#props-panel").hidden = !isPanel;
+  $("#props-bar").hidden = !isBar;
+  if (isBar) renderBarProps();
 
   for (const k of ["w", "d", "h"]) { $("#rg-" + k).value = design[k]; $("#in-" + k).value = design[k]; }
   $("#rg-load").value = design.load; $("#in-load").value = design.load;
@@ -402,20 +586,12 @@ function renderProps() {
     $("#load-chips").append(b);
   }
 
-  // 자유 모드 — 단마다 높이를 따로 준다
-  $("#free-rows").hidden = mode !== "free";
+  // 자유 모드 — 칸과 단을 개별로 준다
+  $("#free-spans").hidden = mode !== "free";
   if (mode === "free") {
-    const host = $("#rowheights"); host.innerHTML = "";
-    const hs = rowHeights();
-    hs.forEach((v, i) => {
-      const r = document.createElement("div"); r.className = "row";
-      r.innerHTML = `<label>${i + 1}단</label><input type="range" min="60" max="900" step="10" value="${v}">
-                     <input type="number" step="10" value="${v}"><span class="u">mm</span>`;
-      const [rg, nm] = [r.querySelector("input[type=range]"), r.querySelector("input[type=number]")];
-      const set = (val) => { const a = rowHeights(); a[i] = C.snap(+val); apply({ rowHeights: a, h: sum(a) + C.SERIES[design.series].w }); };
-      rg.oninput = (e) => set(e.target.value); nm.onchange = (e) => set(e.target.value);
-      host.append(r);
-    });
+    const parts = C.buildParts(design);
+    spanRows($("#colwidths"), parts.colW, "칸", (a) => apply({ colWidths: a }));
+    spanRows($("#rowheights"), parts.gaps, "단", (a) => apply({ rowHeights: a }));
   }
 
   if (isPanel) {
@@ -442,11 +618,89 @@ function renderProps() {
   }
 }
 const sum = (a) => a.reduce((x, y) => x + y, 0);
-function rowHeights() {
-  if (design.rowHeights) return [...design.rowHeights];
-  const P = C.SERIES[design.series].w, span = design.h - P;
-  const step = design.rows > 1 ? span / (design.rows - 1) : span;
-  return Array.from({ length: design.rows }, () => C.snap(step));
+
+/* 한 칸을 늘리면 다른 칸이 줄어야 한다 — 전체 치수는 고정이다.
+   옆 칸에서 가져오고, 모자라면 그다음 칸에서 이어서 가져온다. */
+function redistribute(arr, i, want) {
+  const a = arr.map((v) => Math.round(v));
+  const total = sum(a), M = C.MIN_SPAN;
+  const max = total - M * (a.length - 1);
+  a[i] = Math.min(max, Math.max(M, C.snap(want)));
+  let rest = total - a[i];
+  const others = a.map((_, k) => k).filter((k) => k !== i);
+  const curRest = sum(others.map((k) => a[k])) || 1;
+  for (const k of others) a[k] = Math.max(M, C.snap((a[k] / curRest) * rest));
+  // 스냅 오차는 마지막 칸이 흡수
+  const last = others[others.length - 1];
+  a[last] += total - sum(a);
+  return sum(a) === total && a.every((v) => v >= M) ? a : null;
+}
+
+function spanRows(host, spans, unit, onChange) {
+  host.innerHTML = "";
+  spans.forEach((v, i) => {
+    const val = Math.round(v);
+    const r = document.createElement("div"); r.className = "row";
+    r.innerHTML = `<label>${i + 1}${unit}</label>
+      <input type="range" min="${C.MIN_SPAN}" max="2400" step="10" value="${val}">
+      <input type="number" step="10" value="${val}"><span class="u">mm</span>`;
+    const [rg, nm] = [r.querySelector("input[type=range]"), r.querySelector("input[type=number]")];
+    const set = (x) => { const a = redistribute(spans, i, +x); if (a) onChange(a); };
+    rg.oninput = (e) => set(e.target.value);
+    nm.onchange = (e) => set(e.target.value);
+    host.append(r);
+  });
+  if (spans.length < 2) host.innerHTML = '<p class="hint">칸이 하나뿐이라 나눌 게 없습니다.</p>';
+}
+
+// ── 선택한 부재 ─────────────────────────────────────────────
+const KIND = { post: "기둥", xrail: "가로 레일", yrail: "세로 레일" };
+function renderBarProps() {
+  const b = selectedBar, S = C.SERIES[design.series];
+  const parts = C.buildParts(design);
+  const spec = dragSpec(b);
+  $("#bar-info").innerHTML =
+    `${KIND[b.kind]} · ${S.label} ${C.FINISHES[design.finish].label}<br>` +
+    `길이 <b>${Math.round(b.len)}mm</b> · 위치 X ${Math.round(b.pos[0])} / Y ${Math.round(b.pos[1])} / Z ${Math.round(b.pos[2])}`;
+
+  const host = $("#bar-move"); host.innerHTML = "";
+  if (!spec) {
+    $("#bar-tip").textContent = b.kind === "post"
+      ? "바깥쪽 기둥은 전체 폭이 잡고 있습니다. 가로 W 를 바꾸세요."
+      : "맨 위·아래 단은 전체 높이가 잡고 있습니다. 높이 H 를 바꾸세요.";
+    return;
+  }
+  const isX = spec.axis === "x";
+  const cur = Math.round(isX ? parts.postX[spec.index] : parts.zs[spec.index]);
+  const lo = Math.round((isX ? parts.postX[spec.index - 1] : parts.zs[spec.index - 1]) + C.MIN_SPAN);
+  const hi = Math.round((isX ? parts.postX[spec.index + 1] : parts.zs[spec.index + 1]) - C.MIN_SPAN);
+
+  const r = document.createElement("div"); r.className = "row";
+  r.innerHTML = `<label>${isX ? "X 위치" : "Z 높이"}</label>
+    <input type="range" min="${lo}" max="${Math.max(lo, hi)}" step="10" value="${cur}">
+    <input type="number" step="10" min="${lo}" max="${Math.max(lo, hi)}" value="${cur}"><span class="u">mm</span>`;
+  const [rg, nm] = [r.querySelector("input[type=range]"), r.querySelector("input[type=number]")];
+  const set = (x) => moveDivider(spec, Math.min(hi, Math.max(lo, C.snap(+x))));
+  rg.oninput = (e) => set(e.target.value);
+  nm.onchange = (e) => set(e.target.value);
+  host.append(r);
+  $("#bar-tip").textContent = "3D 에서 이 부재를 바로 끌어도 됩니다.";
+}
+
+/** 경계 하나를 옮긴다 — 양옆 두 칸만 바뀌고 전체 치수는 그대로다 */
+function moveDivider(spec, mm) {
+  const parts = C.buildParts(design);
+  if (spec.axis === "x") {
+    const cw = [...parts.colW];
+    cw[spec.index - 1] = mm - parts.postX[spec.index - 1];
+    cw[spec.index] = parts.postX[spec.index + 1] - mm;
+    apply({ colWidths: cw });
+  } else {
+    const g = [...parts.gaps];
+    g[spec.index - 1] = mm - parts.zs[spec.index - 1];
+    g[spec.index] = parts.zs[spec.index + 1] - mm;
+    apply({ rowHeights: g });
+  }
 }
 
 // ── 검증 배너 (F) ───────────────────────────────────────────
@@ -490,6 +744,9 @@ function renderQuote() {
 // ── 전체 갱신 ───────────────────────────────────────────────
 function refresh() {
   rebuild();
+  // 부재를 옮기면 길이·위치가 달라진다 — 선택한 부재를 새 것으로 다시 잡는다
+  if (selectedBar)
+    selectedBar = barMeshes.find((m) => m.userData.bar.id === selectedBar.id)?.userData.bar ?? null;
   quote = C.price(design);
   issues = C.validate(design, C.buildParts(design), quote);
   renderLib(); renderProps(); renderBanner(issues); renderQuote();
@@ -619,11 +876,11 @@ $("#nav-cart").onclick = () => {
 $("#nav-help").onclick = () => $("#m-help").showModal();
 
 // ── 상단 바 ─────────────────────────────────────────────────
-$("#nav-undo").onclick = () => { if (!undo.length) return; redo.push(clone(design)); design = undo.pop(); selected = null; refresh(); syncHistory(); };
-$("#nav-redo").onclick = () => { if (!redo.length) return; undo.push(clone(design)); design = redo.pop(); selected = null; refresh(); syncHistory(); };
+$("#nav-undo").onclick = () => { if (!undo.length) return; redo.push(clone(design)); design = undo.pop(); selected = selectedBar = null; refresh(); syncHistory(); };
+$("#nav-redo").onclick = () => { if (!redo.length) return; undo.push(clone(design)); design = redo.pop(); selected = selectedBar = null; refresh(); syncHistory(); };
 $("#nav-reset").onclick = () => {
   if (!confirm("설계를 처음 상태로 되돌립니다. 계속할까요?")) return;
-  undo.push(clone(design)); redo.length = 0; design = C.defaultDesign(); selected = null; refresh(); fit("iso"); syncHistory();
+  undo.push(clone(design)); redo.length = 0; design = C.defaultDesign(); selected = selectedBar = null; refresh(); fit("iso"); syncHistory();
 };
 $("#nav-save").onclick = () => { save(); toast("이 브라우저에 저장했습니다"); };
 $("#nav-share").onclick = async () => {
@@ -640,15 +897,15 @@ function setMode(m) {
   mode = m;
   $("#mode-easy").classList.toggle("on", m === "easy");
   $("#mode-free").classList.toggle("on", m === "free");
-  if (m === "easy" && design.rowHeights) apply({ rowHeights: null });
+  if (m === "easy" && (design.rowHeights || design.colWidths)) apply({ colWidths: null, rowHeights: null });
   else renderProps();
-  toast(m === "free" ? "자유 모드 — 단별 높이를 따로 정할 수 있습니다" : "간편 모드 — 단 높이를 균등하게 맞춥니다");
+  toast(m === "free" ? "자유 모드 — 칸 폭과 단 높이를 따로 정할 수 있습니다" : "간편 모드 — 칸과 단을 균등하게 맞춥니다");
 }
-$("#rows-even").onclick = () => apply({ rowHeights: null });
+$("#spans-even").onclick = () => apply({ colWidths: null, rowHeights: null });
 
 $$("[data-step]").forEach((b) => b.onclick = () => {
   const [k, v] = b.dataset.step.split(",");
-  apply({ [k]: design[k] + +v, rowHeights: null });
+  apply({ [k]: design[k] + +v, colWidths: null, rowHeights: null });
 });
 
 function setCellMaterial(k) {
@@ -674,6 +931,7 @@ $("#sel-remove").onclick = () => {
   apply({ removed: [...set] });
 };
 $("#sel-clear").onclick = () => select(null);
+$("#bar-clear").onclick = () => selectBar(null);
 
 // ── 탭 · 뷰 컨트롤 ──────────────────────────────────────────
 $("#lib-tabs").onclick = (e) => {
@@ -682,13 +940,7 @@ $("#lib-tabs").onclick = (e) => {
   $$("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== b.dataset.tab);
 };
 $("#v-reset").onclick = () => fit("iso");
-$("#v-fit").onclick = () => fit(currentView);
-let currentView = "iso";
-$$("[data-view]").forEach((b) => b.onclick = () => {
-  currentView = b.dataset.view;
-  $$("[data-view]").forEach((x) => x.classList.toggle("on", x === b));
-  fit(currentView);
-});
+$("#v-fit").onclick = () => fitDir(camera.position.clone().sub(controls.target));
 $("#v-grid").onclick = (e) => { grid.visible = !grid.visible; e.currentTarget.classList.toggle("on", grid.visible); };
 $("#v-dim").onclick = (e) => { e.currentTarget.classList.toggle("on"); buildDims(); };
 $("#v-explode").onclick = (e) => { exploding = !exploding; e.currentTarget.classList.toggle("on", exploding); };
@@ -717,7 +969,7 @@ addEventListener("keydown", (e) => {
   if (e.target.matches("input,textarea")) return;
   const meta = e.metaKey || e.ctrlKey;
   if (meta && e.key.toLowerCase() === "z") { e.preventDefault(); (e.shiftKey ? $("#nav-redo") : $("#nav-undo")).click(); }
-  if (e.key === "Escape") select(null);
+  if (e.key === "Escape") { select(null); selectBar(null); }
 });
 
 // ── 시작 ────────────────────────────────────────────────────

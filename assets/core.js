@@ -75,7 +75,23 @@ export function cellMaterial(d, level, bay) {
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 export const snap = (v) => Math.round(v / STEP) * STEP;
 
+/** 칸 하나의 최소 폭. 레일이 MIN_CUT 보다 짧아지면 아예 못 만든다 */
+export const MIN_SPAN = 60;
+
+/* 칸 폭·단 간격은 사용자가 개별로 움직일 수 있어야 하지만, 합은 항상
+   전체 치수와 맞아야 한다. 치수가 바뀌면 비율을 유지한 채 다시 맞춘다. */
+export function fitSpans(arr, n, total) {
+  if (!Array.isArray(arr) || arr.length !== n || n < 1) return null;
+  const cur = arr.reduce((a, b) => a + b, 0);
+  if (!(cur > 0) || total < MIN_SPAN * n) return null;
+  const out = arr.map((v) => Math.max(MIN_SPAN, snap((v / cur) * total)));
+  const diff = total - out.reduce((a, b) => a + b, 0);   // 스냅 오차는 마지막 칸이 흡수
+  out[n - 1] += diff;
+  return out[n - 1] >= MIN_SPAN ? out : null;
+}
+
 export function normalize(d) {
+  if (!SERIES[d.series]) d.series = "2020";
   d.w = clamp(snap(d.w), LIMITS.w);
   d.d = clamp(snap(d.d), LIMITS.d);
   d.h = clamp(snap(d.h), LIMITS.h);
@@ -84,7 +100,11 @@ export function normalize(d) {
   d.load = Math.max(0, Math.round(d.load));
   if (!BRACKET_WON[d.bracket]) d.bracket = "std";
   if (!MATERIALS[d.material]) d.material = "white";
-  if (d.rowHeights && d.rowHeights.length !== d.rows) d.rowHeights = null;
+
+  // 칸 폭은 cols 개, 단 간격은 levels 사이의 틈이라 rows-1 개다
+  const P = SERIES[d.series].w;
+  d.colWidths = fitSpans(d.colWidths, d.cols, d.w - P);
+  d.rowHeights = fitSpans(d.rowHeights, d.rows - 1, d.h - P);
 
   /* 칸 수가 줄면 범위 밖 키가 남는다. 그대로 두면 칸을 다시 늘렸을 때
      예전 소재가 유령처럼 되살아난다. 기본값과 같은 키도 같이 버린다. */
@@ -136,34 +156,36 @@ export function profileOutline(series) {
 export function buildParts(d) {
   const P = SERIES[d.series].w;
   const bays = d.cols, levels = d.rows;
-  const pitch = (d.w - P) / bays;                   // 기둥 중심 간격
-  const postX = Array.from({ length: bays + 1 }, (_, i) => P / 2 + i * pitch);
+
+  /* 칸은 균등 분할이 기본이지만, colWidths 가 있으면 칸마다 폭이 다르다.
+     기둥 하나를 끌어 옮기면 양옆 두 칸의 폭만 바뀐다. */
+  const colW = d.colWidths ?? Array(bays).fill((d.w - P) / bays);
+  const postX = [P / 2];
+  for (const c of colW) postX.push(postX[postX.length - 1] + c);
   const postY = [P / 2, d.d - P / 2];
 
-  // 단 높이 — 자유 모드면 사용자가 정한 값, 아니면 균등
-  let zs;
-  if (d.rowHeights) {
-    let acc = P / 2; zs = [];
-    for (let j = 0; j < levels; j++) { zs.push(acc); acc += d.rowHeights[j]; }
-  } else {
-    const span = d.h - P;
-    zs = Array.from({ length: levels }, (_, j) => P / 2 + (levels > 1 ? (j * span) / (levels - 1) : span / 2));
-  }
+  const nGap = Math.max(1, levels - 1);
+  const gaps = d.rowHeights ?? Array(nGap).fill((d.h - P) / nGap);
+  const zs = [P / 2];
+  for (let j = 1; j < levels; j++) zs.push(zs[j - 1] + gaps[j - 1]);
 
   const bars = [];
-  const xRailLen = pitch - P;
+  const bayLens = colW.map((c) => c - P);
   const yRailLen = d.d - 2 * P;
 
-  for (const x of postX) for (const y of postY)
-    bars.push({ kind: "post", axis: "z", len: d.h, pos: [x, y, d.h / 2] });
+  postX.forEach((x, i) => postY.forEach((y, k) =>
+    bars.push({ id: `post:${i}:${k}`, kind: "post", axis: "z", len: d.h, pos: [x, y, d.h / 2], col: i })));
 
-  for (const z of zs) {
-    for (const y of postY)
+  zs.forEach((z, j) => {
+    postY.forEach((y, k) => {
       for (let b = 0; b < bays; b++)
-        bars.push({ kind: "xrail", axis: "x", len: xRailLen, pos: [(postX[b] + postX[b + 1]) / 2, y, z] });
-    for (const x of postX)
-      bars.push({ kind: "yrail", axis: "y", len: yRailLen, pos: [x, d.d / 2, z] });
-  }
+        bars.push({ id: `xrail:${j}:${b}:${k}`, kind: "xrail", axis: "x", len: bayLens[b],
+                    pos: [(postX[b] + postX[b + 1]) / 2, y, z], level: j, bay: b });
+    });
+    postX.forEach((x, i) =>
+      bars.push({ id: `yrail:${j}:${i}`, kind: "yrail", axis: "y", len: yRailLen,
+                  pos: [x, d.d / 2, z], level: j, col: i }));
+  });
 
   const removed = new Set(d.removed);
   const panels = [];
@@ -171,16 +193,17 @@ export function buildParts(d) {
     for (let b = 0; b < bays; b++) {
       if (removed.has(cellKey(j, b))) continue;
       panels.push({
-        level: j, bay: b, w: pitch, d: d.d - P, t: 18,
+        level: j, bay: b, w: colW[b], d: d.d - P, t: 18,
         material: cellMaterial(d, j, b),
         pos: [(postX[b] + postX[b + 1]) / 2, d.d / 2, zs[j] + P / 2 + 9],
-        span: xRailLen,
+        span: bayLens[b],
       });
     }
 
   const feet = postX.flatMap((x) => postY.map((y) => [x, y]));
   const rails = bars.filter((b) => b.kind !== "post");
-  return { bars, panels, feet, joints: rails.length * 2, zs, postX, pitch, xRailLen, yRailLen };
+  return { bars, panels, feet, joints: rails.length * 2, zs, postX, postY, colW, gaps,
+           bayLens, yRailLen, maxBay: Math.max(...bayLens), minBay: Math.min(...bayLens) };
 }
 
 // ── 규칙 엔진 (R1–R9) ───────────────────────────────────────
@@ -195,7 +218,7 @@ export function validate(d, parts = buildParts(d), quote = null) {
   const add = (level, id, msg, fixes = []) => out.push({ level, id, msg, fixes });
 
   // R1 — 절단 최소 길이
-  const shortest = Math.min(parts.xRailLen, parts.yRailLen);
+  const shortest = Math.min(parts.minBay, parts.yRailLen);
   if (shortest < MIN_CUT)
     add("error", "R1", `절단 길이 ${Math.round(shortest)}mm — ${MIN_CUT}mm 미만은 제작할 수 없습니다`,
         [{ label: "폭 늘리기", patch: { w: snap(d.w + 120) } }]);
@@ -205,7 +228,7 @@ export function validate(d, parts = buildParts(d), quote = null) {
     add("error", "R2", `치수는 ${STEP}mm 단위여야 합니다`, [{ label: "맞추기", patch: { w: snap(d.w), d: snap(d.d), h: snap(d.h) } }]);
 
   // R3 — 처짐. 한 칸 하중을 앞뒤 레일 2개가 나눠 받는다
-  const L = parts.xRailLen;
+  const L = parts.maxBay;         // 칸 폭이 제각각이면 가장 넓은 칸이 먼저 휜다
   const W_N = (d.load * 9.81) / 2;
   const dz = deflection(L, W_N, S.I);
   const limit = L / 300;

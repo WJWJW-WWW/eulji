@@ -70,6 +70,51 @@ const d = C.defaultDesign("sideboard");   // 1600×400×800, 2칸 3단, 2020
   assert.ok(!C.materialsUsed(holed).some((m) => m.key === "oak"));
 }
 
+// 칸별 폭 — 기둥을 옮기면 그 양옆 칸만 바뀐다
+{
+  const P = C.SERIES[d.series].w;
+  const uni = C.buildParts(d);
+  assert.deepEqual(uni.colW, [790, 790], "기본은 균등 분할");
+  assert.equal(uni.postX.at(-1) + P / 2, d.w, "기둥이 외곽 치수를 넘지 않는다");
+
+  const skew = C.normalize({ ...d, colWidths: [1100, 480] });
+  const p = C.buildParts(skew);
+  assert.deepEqual(p.colW, [1100, 480]);
+  assert.equal(p.colW.reduce((a, b) => a + b, 0) + P, skew.w, "합은 전체 폭과 맞아야 한다");
+  assert.equal(p.postX[1], P / 2 + 1100);
+  // 패널과 레일 길이도 칸마다 달라진다
+  assert.deepEqual(p.bayLens, [1080, 460]);
+  const w0 = p.panels.filter((x) => x.bay === 0).map((x) => x.w);
+  assert.ok(w0.every((v) => v === 1100));
+
+  // 넓은 칸이 먼저 휜다 — R3 는 최대 칸을 봐야 한다
+  const heavy = C.normalize({ ...d, colWidths: [1400, 180], load: 30 });
+  const hit = C.validate(heavy).find((v) => v.id === "R3");
+  assert.ok(hit && hit.msg.includes("1380"), "가장 넓은 칸 기준으로 경고해야 한다");
+
+  // 폭이 바뀌면 비율을 유지한 채 다시 맞춘다
+  const wider = C.normalize({ ...skew, w: 2000 });
+  assert.equal(wider.colWidths.reduce((a, b) => a + b, 0) + P, 2000);
+  assert.ok(wider.colWidths[0] > wider.colWidths[1], "비율은 유지된다");
+
+  // 칸 수가 바뀌면 버린다 (균등으로 돌아간다)
+  assert.equal(C.normalize({ ...skew, cols: 3 }).colWidths, null);
+  // 최소 폭보다 작게는 못 만든다
+  assert.equal(C.normalize({ ...d, colWidths: [1570, 10] }).colWidths, null);
+}
+
+// 단 간격 — 레벨 사이의 "틈"이라 개수는 rows-1 이다
+{
+  const P = C.SERIES[d.series].w;
+  const g = C.normalize({ ...d, rowHeights: [500, 280] });
+  assert.equal(g.rowHeights.length, d.rows - 1);
+  const p = C.buildParts(g);
+  assert.equal(p.zs.length, d.rows);
+  assert.equal(p.zs[0], P / 2);
+  assert.equal(p.zs.at(-1) + P / 2, g.h, "맨 위 단이 전체 높이와 맞아야 한다");
+  assert.equal(C.normalize({ ...g, rows: 4 }).rowHeights, null);
+}
+
 // 처짐 — 길이 2배면 8배 (L³), 단면2차모멘트가 크면 덜 휜다
 {
   const a = C.deflection(600, 100, 6800);
