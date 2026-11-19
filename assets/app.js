@@ -80,15 +80,14 @@ function profileGeo(series) {
 }
 
 const panelGeo = new THREE.BoxGeometry(1, 1, 1);
-let matAlu, matPanel, panelMeshes = [], allMeshes = [], exploding = false, explodeT = 0;
+let matAlu, panelMeshes = [], allMeshes = [], exploding = false, explodeT = 0;
 
 function rebuild() {
   root.clear(); panelMeshes = []; allMeshes = [];
   const parts = C.buildParts(design);
-  const F = C.FINISHES[design.finish], M = C.MATERIALS[design.material];
+  const F = C.FINISHES[design.finish];
 
   matAlu = new THREE.MeshStandardMaterial({ color: F.color, metalness: 1, roughness: F.rough });
-  matPanel = new THREE.MeshStandardMaterial({ color: M.color, metalness: 0, roughness: 0.62 });
 
   const geo = profileGeo(design.series);
   for (const b of parts.bars) {
@@ -101,7 +100,11 @@ function rebuild() {
     root.add(m);
   }
   for (const p of parts.panels) {
-    const m = new THREE.Mesh(panelGeo, matPanel.clone());
+    const PM = C.MATERIALS[p.material];                 // 칸마다 소재가 다를 수 있다
+    const m = new THREE.Mesh(panelGeo, new THREE.MeshStandardMaterial({
+      color: PM.color, metalness: p.material === "acrylic" ? 0.1 : 0,
+      roughness: p.material === "acrylic" ? 0.25 : 0.62,
+    }));
     m.position.set(p.pos[0] / 1000, p.pos[1] / 1000, p.pos[2] / 1000);
     m.scale.set(p.w / 1000, p.d / 1000, p.t / 1000);
     m.castShadow = m.receiveShadow = true;
@@ -271,8 +274,12 @@ function renderLib() {
   }
 
   const mc = $("#material-cards"); mc.innerHTML = "";
+  const over = Object.keys(design.panelMaterials ?? {}).length;
   for (const [k, m] of Object.entries(C.MATERIALS))
     mc.append(card(design.material === k, m.label, `${m.won.toLocaleString()}원/m² · 18T`, () => apply({ material: k })));
+  $("#material-note").textContent = over
+    ? `${over}칸은 따로 지정돼 있어 기본 소재를 바꿔도 그대로입니다.`
+    : "패널을 클릭하면 그 칸만 다른 소재로 바꿀 수 있습니다.";
 }
 
 // ── 속성 패널 (D) ───────────────────────────────────────────
@@ -334,14 +341,20 @@ function renderProps() {
       ? `${selected.level + 1}단 ${selected.bay + 1}번 칸 · ${Math.round(p.w)}×${Math.round(p.d)}mm · 무지지 스팬 ${Math.round(p.span)}mm`
       : `${selected.level + 1}단 ${selected.bay + 1}번 칸 · 비어 있음`;
     $("#sel-remove").textContent = p ? "이 칸 비우기" : "이 칸 채우기";
+
+    const cur = C.cellMaterial(design, selected.level, selected.bay);
+    const overridden = !!design.panelMaterials?.[C.cellKey(selected.level, selected.bay)];
     const sm = $("#sel-material"); sm.innerHTML = "";
     for (const [k, m] of Object.entries(C.MATERIALS)) {
       const b = document.createElement("button");
-      b.className = "sw" + (design.material === k ? " on" : "");
+      b.className = "sw" + (cur === k ? " on" : "");
       b.style.background = "#" + m.color.toString(16).padStart(6, "0");
-      b.title = m.label; b.onclick = () => apply({ material: k });
+      b.title = m.label; b.onclick = () => setCellMaterial(k);
       sm.append(b);
     }
+    $("#sel-matname").textContent = C.MATERIALS[cur].label + (overridden ? " (이 칸만 지정됨)" : " (기본 소재)");
+    $("#sel-spread").hidden = !overridden;
+    $("#sel-revert").hidden = !overridden;
   }
 }
 const sum = (a) => a.reduce((x, y) => x + y, 0);
@@ -465,7 +478,11 @@ $("#bom-print").onclick = () => {
   const cuts = new Map();
   for (const b of parts.bars) { const k = Math.round(b.len); cuts.set(k, (cuts.get(k) || 0) + 1); }
   const panels = new Map();
-  for (const p of parts.panels) { const k = `${Math.round(p.w)}×${Math.round(p.d)}`; panels.set(k, (panels.get(k) || 0) + 1); }
+  for (const p of parts.panels) {
+    const k = `${C.MATERIALS[p.material].label}|${Math.round(p.w)}×${Math.round(p.d)}`;
+    if (!panels.has(k)) panels.set(k, []);
+    panels.get(k).push(`${p.level + 1}단 ${p.bay + 1}칸`);
+  }
   $("#worksheet").innerHTML = `
     <h1>작업지시서 — ${esc($("#nav-title").value || "무제")}</h1>
     <div class="sub">${esc(C.summary(design))} · 출력 ${new Date().toLocaleString("ko-KR")}</div>
@@ -474,9 +491,11 @@ $("#bom-print").onclick = () => {
     ${[...cuts].sort((a, b) => b[0] - a[0]).map(([l, n]) =>
       `<tr><td>${l} mm</td><td>${n} EA</td><td>${l === design.h ? "—" : "M5 양끝"}</td><td></td></tr>`).join("")}
     </tbody></table>
-    <h2>2. 패널 재단 (${C.MATERIALS[design.material].label} 18T)</h2>
-    <table><thead><tr><th>치수</th><th>수량</th><th>엣지</th><th>검수(실측)</th></tr></thead><tbody>
-    ${[...panels].map(([k, n]) => `<tr><td>${k} mm</td><td>${n} EA</td><td>4면 동일색</td><td></td></tr>`).join("")}
+    <h2>2. 패널 재단 (18T)</h2>
+    <table><thead><tr><th>소재</th><th>치수</th><th>수량</th><th>들어갈 자리</th><th>검수(실측)</th></tr></thead><tbody>
+    ${[...panels].map(([k, cells]) => { const [mat, size] = k.split("|");
+      return `<tr><td>${esc(mat)}</td><td>${size} mm</td><td>${cells.length} EA</td><td>${cells.join(", ")}</td><td></td></tr>`;
+    }).join("")}
     </tbody></table>
     <h2>3. 부자재</h2>
     <table><tbody>${C.bom(design).filter((r) => !r.name.includes("프로파일") && !r.name.includes("패널"))
@@ -547,6 +566,22 @@ $$("[data-step]").forEach((b) => b.onclick = () => {
   apply({ [k]: design[k] + +v, rowHeights: null });
 });
 
+function setCellMaterial(k) {
+  const pm = { ...design.panelMaterials };
+  if (k === design.material) delete pm[C.cellKey(selected.level, selected.bay)];
+  else pm[C.cellKey(selected.level, selected.bay)] = k;
+  apply({ panelMaterials: pm });
+}
+// 이 칸 소재를 기본값으로 올리고 다른 칸의 개별 지정을 모두 지운다
+$("#sel-spread").onclick = () => {
+  apply({ material: C.cellMaterial(design, selected.level, selected.bay), panelMaterials: {} });
+  toast("이 소재를 전체 패널에 적용했습니다");
+};
+$("#sel-revert").onclick = () => {
+  const pm = { ...design.panelMaterials };
+  delete pm[C.cellKey(selected.level, selected.bay)];
+  apply({ panelMaterials: pm });
+};
 $("#sel-remove").onclick = () => {
   const k = `${selected.level},${selected.bay}`;
   const set = new Set(design.removed);
@@ -588,7 +623,10 @@ $$("[data-sheetpane]").forEach((b) => b.onclick = () => setPane(b.dataset.sheetp
 document.body.dataset.pane = "props";
 $$("[data-sheetpane]").forEach((b) => b.classList.toggle("on", b.dataset.sheetpane === "props"));
 setSheet(isMobile() ? 1 : 0);
-matchMedia("(max-width:860px)").addEventListener("change", (e) => setSheet(e.matches ? 1 : 0));
+matchMedia("(max-width:860px)").addEventListener("change", (e) => {
+  setSheet(e.matches ? 1 : 0);
+  renderBanner(issues);   // 모바일은 배너를 1줄만 띄운다 — 폭이 바뀌면 다시 그려야 한다
+});
 
 addEventListener("keydown", (e) => {
   if (e.target.matches("input,textarea")) return;

@@ -67,9 +67,9 @@
       </section>
 
       <section data-pane="panel" hidden>
-        <h3>면재</h3>
+        <h3>기본 면재</h3>
         <div class="cards" id="material-cards"></div>
-        <p class="hint">패널을 클릭하면 그 칸만 비우거나 바꿀 수 있습니다.</p>
+        <p class="hint" id="material-note"></p>
       </section>
 
       <section data-pane="leg" hidden>
@@ -137,8 +137,11 @@
       <div id="props-panel" hidden>
         <h3>선택한 패널 <button class="x" id="sel-clear" aria-label="선택 해제">✕</button></h3>
         <p class="hint" id="sel-info"></p>
-        <h3>소재 <small>— 모든 패널에 함께 적용됩니다</small></h3>
+        <h3>이 칸의 소재</h3>
         <div class="swatches" id="sel-material"></div>
+        <p class="hint" id="sel-matname"></p>
+        <button class="wide ghost" id="sel-spread" hidden>이 소재를 전체에 적용</button>
+        <button class="wide ghost" id="sel-revert" hidden>기본 소재로 되돌리기</button>
         <button class="wide ghost" id="sel-remove">이 칸 비우기</button>
       </div>
     </aside>

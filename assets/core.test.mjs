@@ -34,6 +34,42 @@ const d = C.defaultDesign("sideboard");   // 1600×400×800, 2칸 3단, 2020
   assert.equal(p.panels.length, d.rows * d.cols - 2);
 }
 
+// 칸별 소재
+{
+  // 덮어쓴 칸만 바뀌고 나머지는 기본 소재를 따른다
+  const mixed = C.normalize({ ...d, material: "lpm", panelMaterials: { "0,0": "acrylic" } });
+  const p = C.buildParts(mixed);
+  assert.equal(C.cellMaterial(mixed, 0, 0), "acrylic");
+  assert.equal(C.cellMaterial(mixed, 1, 0), "lpm");
+  assert.equal(p.panels.filter((x) => x.material === "acrylic").length, 1);
+
+  // 비싼 소재를 한 칸 섞으면 전부 기본일 때보다 비싸고, 전부 비쌀 때보다 싸다
+  const allCheap = C.price({ ...d, material: "lpm", panelMaterials: {} }).total;
+  const allPricey = C.price({ ...d, material: "acrylic", panelMaterials: {} }).total;
+  const one = C.price(mixed).total;
+  assert.ok(allCheap < one && one < allPricey, "한 칸만 바꾸면 가격이 그 사이에 있어야 한다");
+
+  // 무게도 소재를 따라간다
+  assert.ok(C.price(mixed).weight > C.price({ ...d, material: "lpm", panelMaterials: {} }).weight);
+
+  // BOM 은 소재별로 쪼개지고 수량 합은 패널 수와 같다
+  const rows = C.bom(mixed).filter((r) => r.name.includes("패널"));
+  assert.equal(rows.length, 2, "LPM 과 아크릴 두 줄");
+  assert.equal(rows.reduce((s, r) => s + r.qty, 0), p.panels.length);
+
+  // 칸을 줄이면 범위 밖 덮어쓰기는 버려진다 — 다시 늘렸을 때 되살아나면 안 된다
+  const shrunk = C.normalize({ ...d, cols: 1, panelMaterials: { "0,1": "walnut", "0,0": "acrylic" } });
+  assert.deepEqual(Object.keys(shrunk.panelMaterials), ["0,0"]);
+  assert.equal(C.cellMaterial(C.normalize({ ...shrunk, cols: 2 }), 0, 1), shrunk.material);
+
+  // 기본 소재와 같은 덮어쓰기는 남겨둘 이유가 없다
+  assert.deepEqual(C.normalize({ ...d, material: "walnut", panelMaterials: { "0,0": "walnut" } }).panelMaterials, {});
+
+  // 비운 칸은 소재 집계에 들어가지 않는다
+  const holed = C.normalize({ ...d, material: "lpm", removed: ["0,0"], panelMaterials: { "0,0": "acrylic" } });
+  assert.ok(!C.materialsUsed(holed).some((m) => m.key === "acrylic"));
+}
+
 // 처짐 — 길이 2배면 8배 (L³), 단면2차모멘트가 크면 덜 휜다
 {
   const a = C.deflection(600, 100, 6800);

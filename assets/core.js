@@ -56,9 +56,17 @@ export function defaultDesign(preset = "sideboard") {
     w: p.w, d: p.d, h: p.h, cols: p.cols, rows: p.rows,
     load: 10,                     // 칸당 kg
     removed: [],                  // 비운 칸 "level,bay"
+    panelMaterials: {},           // 칸별 소재 덮어쓰기. 없는 칸은 material 을 따른다
     rowHeights: null,             // 자유 모드에서만 채워진다 (null = 균등)
     room: null,                   // { wallW, wallH, depth }
   };
+}
+
+export const cellKey = (level, bay) => `${level},${bay}`;
+/** 그 칸의 실제 소재 키. 덮어쓴 값이 없으면 기본 소재. */
+export function cellMaterial(d, level, bay) {
+  const m = d.panelMaterials?.[cellKey(level, bay)];
+  return MATERIALS[m] ? m : d.material;
 }
 
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
@@ -72,7 +80,19 @@ export function normalize(d) {
   d.rows = clamp(Math.round(d.rows), LIMITS.rows);
   d.load = Math.max(0, Math.round(d.load));
   if (!BRACKET_WON[d.bracket]) d.bracket = "std";
+  if (!MATERIALS[d.material]) d.material = "lpm";
   if (d.rowHeights && d.rowHeights.length !== d.rows) d.rowHeights = null;
+
+  /* 칸 수가 줄면 범위 밖 키가 남는다. 그대로 두면 칸을 다시 늘렸을 때
+     예전 소재가 유령처럼 되살아난다. 기본값과 같은 키도 같이 버린다. */
+  const pm = {};
+  for (const [k, v] of Object.entries(d.panelMaterials ?? {})) {
+    const [j, b] = k.split(",").map(Number);
+    if (!MATERIALS[v] || v === d.material) continue;
+    if (!(j >= 0 && j < d.rows && b >= 0 && b < d.cols)) continue;
+    pm[k] = v;
+  }
+  d.panelMaterials = pm;
   return d;
 }
 
@@ -146,9 +166,10 @@ export function buildParts(d) {
   const panels = [];
   for (let j = 0; j < levels; j++)
     for (let b = 0; b < bays; b++) {
-      if (removed.has(`${j},${b}`)) continue;
+      if (removed.has(cellKey(j, b))) continue;
       panels.push({
         level: j, bay: b, w: pitch, d: d.d - P, t: 18,
+        material: cellMaterial(d, j, b),
         pos: [(postX[b] + postX[b + 1]) / 2, d.d / 2, zs[j] + P / 2 + 9],
         span: xRailLen,
       });
@@ -260,19 +281,24 @@ export function bestYield(d) {
 
 // ── 견적 ────────────────────────────────────────────────────
 export function price(d) {
-  const S = SERIES[d.series], M = MATERIALS[d.material];
+  const S = SERIES[d.series];
   const parts = buildParts(d);
 
   const barLenM = parts.bars.reduce((s, b) => s + b.len, 0) / 1000;
-  const panelM2 = parts.panels.reduce((s, p) => s + (p.w * p.d) / 1e6, 0);
   const panelPerimM = parts.panels.reduce((s, p) => s + (2 * (p.w + p.d)) / 1000, 0);
+  // 칸마다 소재가 다를 수 있으니 장당으로 합산한다
+  let panelWon = 0, panelKg = 0;
+  for (const p of parts.panels) {
+    const M = MATERIALS[p.material], m2 = (p.w * p.d) / 1e6;
+    panelWon += m2 * M.won; panelKg += m2 * M.kgM2;
+  }
 
   /* 체결은 엔드 패스너(탭+볼트+T너트)가 기본이고, 브래킷은 기둥 상하단 보강에만 쓴다.
      처음엔 모든 조인트에 브래킷과 탭을 둘 다 물려 원가가 두 배로 튀었다. */
   const brackets = parts.feet.length * 2;
   const material = Math.round(
     barLenM * S.cost +
-    panelM2 * M.won +
+    panelWon +
     brackets * (BRACKET_WON[d.bracket] ?? BRACKET_WON.std) +
     parts.joints * FASTENER_WON +
     parts.feet.length * FOOT_WON
@@ -283,7 +309,7 @@ export function price(d) {
     panelPerimM * EDGE_WON
   );
 
-  const weight = barLenM * S.kgPerM + panelM2 * M.kgM2 + parts.joints * 0.06 + parts.feet.length * 0.05;
+  const weight = barLenM * S.kgPerM + panelKg + parts.joints * 0.06 + parts.feet.length * 0.05;
   const packing = Math.round(PACK_BASE + Math.ceil(weight / 5) * PACK_PER5);
   const shipping = weight > 30 ? 12000 : 6000;
 
@@ -300,7 +326,7 @@ export function price(d) {
 
 /** 명세서 G `quote.bom` — 부품표를 통째로 공개한다. 단가 근거를 숨기지 않는 게 신뢰 장치다. */
 export function bom(d) {
-  const S = SERIES[d.series], M = MATERIALS[d.material];
+  const S = SERIES[d.series];
   const parts = buildParts(d);
   const rows = [];
   const group = new Map();
@@ -312,9 +338,12 @@ export function bom(d) {
     const len = parseInt(name.match(/(\d+)mm/)[1], 10);
     rows.push({ name, qty, unit: "EA", won: Math.round((len / 1000) * S.cost) });
   }
-  if (parts.panels.length) {
-    const p = parts.panels[0];
-    rows.push({ name: `${M.label} 패널 18T ${Math.round(p.w)}×${Math.round(p.d)}mm`, qty: parts.panels.length,
+  // 패널은 치수가 모두 같으므로 소재별로만 묶는다
+  const byMat = new Map();
+  for (const p of parts.panels) byMat.set(p.material, (byMat.get(p.material) || 0) + 1);
+  for (const [mk, qty] of byMat) {
+    const M = MATERIALS[mk], p = parts.panels[0];
+    rows.push({ name: `${M.label} 패널 18T ${Math.round(p.w)}×${Math.round(p.d)}mm`, qty,
                 unit: "EA", won: Math.round((p.w * p.d / 1e6) * M.won) });
   }
   rows.push({ name: `코너 브래킷 ${d.bracket === "heavy" ? "(강화)" : "(표준)"}`, qty: parts.feet.length * 2,
@@ -324,7 +353,19 @@ export function bom(d) {
   return rows;
 }
 
+/** 쓰인 소재를 많은 순으로 [{key, label, qty}] 로 돌려준다 */
+export function materialsUsed(d) {
+  const byMat = new Map();
+  for (const p of buildParts(d).panels) byMat.set(p.material, (byMat.get(p.material) || 0) + 1);
+  return [...byMat].sort((a, b) => b[1] - a[1])
+                   .map(([key, qty]) => ({ key, label: MATERIALS[key].label, qty }));
+}
+
 /** 치수 요약 — 공유·주문서·작업지시서 머리말에 쓴다 */
 export function summary(d) {
-  return `${d.w}×${d.d}×${d.h}mm · ${SERIES[d.series].label} ${FINISHES[d.finish].label} · ${MATERIALS[d.material].label} · ${d.cols}칸 ${d.rows}단`;
+  const mats = materialsUsed(d);
+  const matTxt = mats.length === 0 ? "패널 없음"
+    : mats.length === 1 ? mats[0].label
+    : mats.map((m) => `${m.label} ${m.qty}`).join(" + ");
+  return `${d.w}×${d.d}×${d.h}mm · ${SERIES[d.series].label} ${FINISHES[d.finish].label} · ${matTxt} · ${d.cols}칸 ${d.rows}단`;
 }
