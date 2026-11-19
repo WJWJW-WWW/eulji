@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>설계하기 — eulji</title>
+<meta name="description" content="알루미늄 프로파일 모듈러 가구를 원하는 치수로 설계하고 실시간 견적을 확인합니다.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="assets/build.css">
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- A. 상단 바 ─────────────────────────────────────── -->
+  <header class="bar">
+    <a class="wordmark" href="index.html" id="nav-logo">eulji</a>
+    <input id="nav-title" class="title" value="내 가구 1" aria-label="설계 이름" maxlength="40">
+
+    <div class="grp">
+      <button id="nav-undo" class="ib" title="실행 취소 (⌘Z)" aria-label="실행 취소">↶</button>
+      <button id="nav-redo" class="ib" title="다시 실행 (⇧⌘Z)" aria-label="다시 실행">↷</button>
+      <button id="nav-reset" class="tb">처음부터</button>
+    </div>
+
+    <div class="mode" role="group" aria-label="편집 모드">
+      <button id="mode-easy" class="on">간편</button>
+      <button id="mode-free">자유</button>
+    </div>
+
+    <div class="grp right">
+      <button id="nav-save" class="tb">저장</button>
+      <button id="nav-share" class="tb">공유</button>
+      <button id="nav-help" class="ib" title="도움말" aria-label="도움말">?</button>
+      <button id="nav-cart" class="tb cart">장바구니 <span id="cart-n">0</span></button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- B. 부품·프리셋 라이브러리 ─────────────────────── -->
+    <aside class="lib" id="lib">
+      <nav class="tabs" id="lib-tabs">
+        <button data-tab="preset" class="on">프리셋</button>
+        <button data-tab="frame">프레임</button>
+        <button data-tab="panel">패널</button>
+        <button data-tab="leg">다리</button>
+      </nav>
+
+      <section data-pane="preset">
+        <p class="hint">백지에서 시작하지 않습니다. 가까운 것을 고르고 치수를 바꾸세요.</p>
+        <div class="cards" id="preset-cards"></div>
+      </section>
+
+      <section data-pane="frame" hidden>
+        <h3>프로파일 규격</h3>
+        <div class="cards" id="series-cards"></div>
+        <h3>마감</h3>
+        <div class="swatches" id="finish-sw"></div>
+      </section>
+
+      <section data-pane="panel" hidden>
+        <h3>면재</h3>
+        <div class="cards" id="material-cards"></div>
+        <p class="hint">패널을 클릭하면 그 칸만 비우거나 바꿀 수 있습니다.</p>
+      </section>
+
+      <section data-pane="leg" hidden>
+        <h3>바닥 마감</h3>
+        <p class="hint">수평조절풋이 기본 포함됩니다. 캐스터·테이퍼드 레그는 정식 런칭 때 열립니다.</p>
+      </section>
+    </aside>
+
+    <!-- C. 3D 뷰포트 ─────────────────────────────────── -->
+    <main class="view" id="view">
+      <canvas id="cv"></canvas>
+      <div class="labels" id="labels" aria-hidden="true"></div>
+
+      <!-- E. 뷰 컨트롤 -->
+      <div class="viewctl">
+        <button id="v-reset" title="처음 각도">⟲</button>
+        <button data-view="front" title="정면">정</button>
+        <button data-view="side" title="측면">측</button>
+        <button data-view="top" title="평면">평</button>
+        <button data-view="iso" class="on" title="아이소">ISO</button>
+        <button id="v-fit" title="화면 맞춤">⤢</button>
+        <button id="v-grid" title="바닥 격자">▦</button>
+        <button id="v-dim" class="on" title="치수선">↔</button>
+        <button id="v-explode" title="분해도">⊞</button>
+      </div>
+
+      <!-- F. 검증 배너 -->
+      <div class="banner" id="banner" role="status" aria-live="polite"></div>
+    </main>
+
+    <!-- D. 속성 패널 ─────────────────────────────────── -->
+    <aside class="props" id="props">
+
+      <div id="props-design">
+        <h3>치수</h3>
+        <div class="row" data-k="w"><label for="in-w">가로 W</label>
+          <input type="range" id="rg-w"><input type="number" id="in-w" step="10"><span class="u">mm</span></div>
+        <div class="row" data-k="d"><label for="in-d">깊이 D</label>
+          <input type="range" id="rg-d"><input type="number" id="in-d" step="10"><span class="u">mm</span></div>
+        <div class="row" data-k="h"><label for="in-h">높이 H</label>
+          <input type="range" id="rg-h"><input type="number" id="in-h" step="10"><span class="u">mm</span></div>
+        <div class="chips" id="dim-presets"></div>
+        <button class="wide" id="open-room">내 방 치수 넣고 맞추기</button>
+
+        <h3>칸 나누기</h3>
+        <div class="stepper"><span>칸 수 (가로)</span>
+          <button data-step="cols,-1">−</button><b id="v-cols">2</b><button data-step="cols,1">+</button></div>
+        <div class="stepper"><span>단 수 (세로)</span>
+          <button data-step="rows,-1">−</button><b id="v-rows">3</b><button data-step="rows,1">+</button></div>
+
+        <div id="free-rows" hidden>
+          <h3>단별 높이 <small>자유 모드</small></h3>
+          <div id="rowheights"></div>
+          <button class="wide ghost" id="rows-even">균등하게</button>
+        </div>
+
+        <h3>적재 하중</h3>
+        <div class="chips" id="load-chips"></div>
+        <div class="row"><label for="in-load">칸당</label>
+          <input type="range" id="rg-load" min="0" max="60" step="5">
+          <input type="number" id="in-load" step="5"><span class="u">kg</span></div>
+        <p class="hint">이 값이 처짐·체결부 검증의 입력입니다.</p>
+      </div>
+
+      <div id="props-panel" hidden>
+        <h3>선택한 패널 <button class="x" id="sel-clear" aria-label="선택 해제">✕</button></h3>
+        <p class="hint" id="sel-info"></p>
+        <h3>소재 <small>— 모든 패널에 함께 적용됩니다</small></h3>
+        <div class="swatches" id="sel-material"></div>
+        <button class="wide ghost" id="sel-remove">이 칸 비우기</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- G. 견적 바 ───────────────────────────────────── -->
+  <footer class="quote">
+    <div class="total">
+      <b id="q-total">—</b>
+      <span id="q-delta" class="delta"></span>
+      <button class="link" id="q-breakdown">견적 상세</button>
+    </div>
+    <dl class="meta">
+      <div><dt>납기</dt><dd id="q-lead">—</dd></div>
+      <div><dt>무게</dt><dd id="q-weight">—</dd></div>
+      <div><dt>부재</dt><dd id="q-parts">—</dd></div>
+    </dl>
+    <div class="acts">
+      <button class="tb" id="q-bom">부품표</button>
+      <button class="go" id="q-cart">장바구니 담기</button>
+    </div>
+  </footer>
+
+  <!-- 모바일 하단 시트 — 좌·우 패널을 탭 하나로 합친다 (명세서 §3-2) -->
+  <div class="sheetbar" id="sheetbar">
+    <button class="grip" id="grip" aria-label="패널 크기 바꾸기"><span></span></button>
+    <div class="sheettabs">
+      <button data-sheetpane="lib">부품·프리셋</button>
+      <button data-sheetpane="props" class="on">치수·옵션</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 모달 ───────────────────────────────────────── -->
+<dialog id="m-room">
+  <form method="dialog">
+    <h2>내 방 치수</h2>
+    <p class="hint">가구가 들어갈 벽면을 재세요. 한 쪽이라도 넣으면 최대 치수를 거기에 맞춥니다.</p>
+    <div class="row"><label for="r-w">벽 폭</label><input type="number" id="r-w" step="10" placeholder="2400"><span class="u">mm</span></div>
+    <div class="row"><label for="r-h">벽 높이</label><input type="number" id="r-h" step="10" placeholder="2300"><span class="u">mm</span></div>
+    <div class="row"><label for="r-d">여유 깊이</label><input type="number" id="r-d" step="10" placeholder="450"><span class="u">mm</span></div>
+    <details><summary>이렇게 재세요</summary>
+      <ul class="tips">
+        <li>걸레받이(몰딩) 위가 아니라 <b>가장 좁은 지점</b>을 재세요.</li>
+        <li>콘센트·스위치 위치를 바닥에서부터 재두면 패널을 피해 설계합니다.</li>
+        <li>벽이 기울어 있을 수 있습니다. 위·중간·아래 세 번 재서 가장 작은 값을 쓰세요.</li>
+        <li>운반 경로(문·엘리베이터) 폭도 확인하세요. 분할 배송 여부가 갈립니다.</li>
+      </ul>
+    </details>
+    <menu><button value="cancel" class="tb">취소</button><button value="ok" class="go" id="r-ok">적용</button></menu>
+  </form>
+</dialog>
+
+<dialog id="m-bom">
+  <h2>부품표</h2>
+  <p class="hint">이 가격이 왜 이 가격인지 전부 공개합니다. 단가는 모두 추정치입니다.</p>
+  <div class="tablewrap"><table id="bom-table"></table></div>
+  <menu>
+    <button class="tb" id="bom-csv">CSV 내려받기</button>
+    <button class="tb" id="bom-print">작업지시서 출력</button>
+    <button class="go" data-close>닫기</button>
+  </menu>
+</dialog>
+
+<dialog id="m-break">
+  <h2>견적 상세</h2>
+  <div class="tablewrap"><table id="break-table"></table></div>
+  <p class="hint">판매가는 원가에 목표 마진 35%를 얹어 1,000원 단위로 올림합니다.</p>
+  <menu><button class="go" data-close>닫기</button></menu>
+</dialog>
+
+<!-- 전자상거래법 제17조 제2항 제6호 — 체크박스 하나로는 효력이 없다 -->
+<dialog id="m-consent">
+  <h2>주문제작 확인</h2>
+  <p class="hint">주문하신 치수대로 개별 생산하므로, 가공을 시작한 뒤에는 청약철회가 제한됩니다. 아래 내용을 확인해 주세요.</p>
+  <div class="confirm" id="c-summary"></div>
+  <label class="check"><input type="checkbox" id="c-1"> 위 <b>치수와 사양</b>을 확인했습니다.</label>
+  <label class="check"><input type="checkbox" id="c-2"> 개별 생산품이라 <b>가공 착수 후에는 청약철회가 제한</b>된다는 점에 동의합니다.</label>
+  <p class="hint">가공 착수 전까지는 주문 상세에서 언제든 취소할 수 있습니다. 착수 시점은 주문 상세에 표시됩니다.</p>
+  <menu>
+    <button class="tb" data-close>돌아가기</button>
+    <button class="go" id="c-ok" disabled>동의하고 담기</button>
+  </menu>
+</dialog>
+
+<dialog id="m-help">
+  <h2>3단계면 끝납니다</h2>
+  <ol class="steps">
+    <li><b>치수를 정합니다.</b> 슬라이더를 움직이거나 내 방 치수를 넣으세요. 10mm 단위로 맞춰집니다.</li>
+    <li><b>칸과 소재를 고릅니다.</b> 패널을 클릭하면 그 칸만 비울 수 있습니다.</li>
+    <li><b>을지로가 만듭니다.</b> 부품표와 가격이 설계하는 내내 열려 있습니다.</li>
+  </ol>
+  <p class="hint">빨간 배너가 뜨면 제작이 불가능한 설계입니다. 옆의 버튼을 누르면 한 번에 고쳐집니다.</p>
+  <menu><button class="go" data-close>시작하기</button></menu>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 작업지시서 — 명세서 §8. 장인은 웹에 로그인하지 않는다. 출력되는 A4 한 장이 인터페이스다 -->
+<section id="worksheet" aria-hidden="true"></section>
+
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>

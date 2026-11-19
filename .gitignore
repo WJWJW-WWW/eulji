@@ -1,0 +1,16 @@
+# 공개 저장소다. 기본은 "올리지 않음"이고, 웹사이트 파일만 골라서 올린다.
+# 기획서(원가·마진·자금 로드맵)와 자료집(저작권 있는 논문 PDF)이 섞여 들어가면 안 된다.
+*
+
+!.gitignore
+!README.md
+!index.html
+!build.html
+
+!assets/
+!assets/*.js
+!assets/*.mjs
+!assets/*.css
+!assets/*.webp
+
+.DS_Store
