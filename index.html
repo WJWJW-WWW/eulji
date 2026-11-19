@@ -10,184 +10,253 @@
 <meta property="og:image" content="assets/hero-desktop.webp">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="assets/base.css">
 <style>
-  :root{
-    --paper:#F1F1F1;          /* 완전 무채색 바탕 */
-    --panel:#DEDEDE;          /* 이미지 로드 전 패널 바탕 */
-    --ink:#0D0D0D;
-    --mute:#8A8A8A;
-    --line:#E0E0E0;
-    --gut:clamp(16px,2.4vw,34px);
-    --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
-  }
-  html{color-scheme:light}          /* 렌더가 밝은 스튜디오 톤이라 라이트 고정 */
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{
-    background:var(--paper); color:var(--ink);
-    font-family:var(--sans); font-size:14px; line-height:1.5;
-    -webkit-font-smoothing:antialiased;
-    display:flex; flex-direction:column;
-    min-height:100svh; overflow-x:hidden;
-    padding:0 var(--gut) max(var(--gut),env(safe-area-inset-bottom));
-  }
-  a{color:inherit;text-decoration:none}
-  .mono{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);line-height:1.6}
+  body{display:flex;flex-direction:column;min-height:100svh;overflow-x:hidden}
 
-  /* ── 헤더 ────────────────────────────────── */
-  header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 2px 16px}
-  .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
-  .wordmark{font-size:18px;font-weight:650;letter-spacing:-.045em}
-  nav{display:flex;gap:26px}
-  nav a{font-size:13px;color:var(--mute);transition:color .18s}
-  nav a:hover{color:var(--ink)}
-  .head-right{display:flex;gap:18px;align-items:center;white-space:nowrap}
+  /* ── 상단 ────────────────────────────────── */
+  .top{display:flex;align-items:center;gap:var(--gut);padding:14px var(--gut) 0}
+  .mark{font-size:17px;font-weight:500;letter-spacing:-.045em;flex:0 0 auto}
+  .top .strip{flex:1;min-width:0;overflow:hidden}
 
-  /* ── 히어로 패널 ─────────────────────────── */
-  .stage{flex:1;position:relative;display:flex;min-height:0}
-  .panel{
-    position:relative; flex:1; min-height:420px;
-    background:var(--panel); overflow:hidden; isolation:isolate;
-  }
-  .panel img{
-    position:absolute;inset:0;width:100%;height:100%;
-    object-fit:cover;object-position:52% 48%;
-  }
-  /* 글자 깔리는 자리만 살짝 눌러준다 — 렌더가 밝아 대비가 아슬아슬하다 */
-  .panel::after{
-    content:"";position:absolute;inset:0;pointer-events:none;
-    background:
-      linear-gradient(to bottom,rgba(255,255,255,.34) 0 14%,transparent 34%),
-      linear-gradient(to top,rgba(241,241,241,.5) 0 26%,transparent 52%);
-  }
-  .labels{
-    position:absolute;top:0;left:0;right:0;z-index:1;
-    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) auto;gap:clamp(12px,2vw,28px);
-    padding:16px clamp(14px,2vw,26px);
-  }
-  .labels div{min-width:0}
-  .labels div:last-child{text-align:right;white-space:nowrap}
+  /* ── 히어로 ──────────────────────────────── */
+  .hero{position:relative;flex:1;min-height:clamp(420px,62svh,760px);margin:14px var(--gut) 0;
+    background:var(--plate);overflow:hidden;isolation:isolate}
+  .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:54% 46%}
+  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(to bottom,rgba(255,255,255,.3) 0 13%,transparent 32%),
+               linear-gradient(to top,rgba(241,241,241,.42) 0 24%,transparent 50%)}
+  .hero__cap{position:absolute;z-index:1;inset:0 0 auto 0;display:grid;
+    grid-template-columns:1fr 1fr auto;gap:clamp(12px,2vw,30px);padding:16px clamp(14px,2vw,26px)}
+  .hero__cap div:last-child{text-align:right;white-space:nowrap}
+  .hero__foot{position:absolute;z-index:1;inset:auto 0 0 0;display:flex;align-items:flex-end;
+    justify-content:space-between;gap:24px;padding:0 clamp(14px,2vw,26px) clamp(16px,2.4vw,30px);
+    pointer-events:none}
+  .hero__foot > *{pointer-events:auto}
+  .hero h1{margin-bottom:12px}
+  .pills{display:flex;gap:8px;flex-shrink:0}
 
-  /* 데스크톱: 이미지 위에 겹치는 하단 바. 모바일: 이미지 아래로 내려간다 */
-  .below{
-    position:absolute;left:0;right:0;bottom:0;z-index:1;
-    display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
-    padding:0 clamp(14px,2vw,26px) clamp(16px,2.4vw,30px);
-    pointer-events:none;
-  }
-  .below > *{pointer-events:auto}
-  .lede{max-width:min(92%,760px)}
-  h1{
-    font-size:clamp(34px,5.4vw,74px);font-weight:600;
-    letter-spacing:-.045em;line-height:1.0;text-indent:-.035em;
-  }
-  .lede p{margin-top:14px;max-width:34ch;font-size:clamp(13px,1.05vw,15px);line-height:1.65;color:#3A3A3A}
+  /* ── 섹션 ────────────────────────────────── */
+  section{padding:clamp(56px,9vw,130px) 0}
+  .grid{display:grid;gap:clamp(10px,1.4vw,18px)}
 
-  .pills{display:flex;gap:8px;align-items:center;flex-shrink:0}
-  .pill{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    height:52px;padding:0 26px;border-radius:999px;
-    background:#fff;color:var(--ink);
-    font-size:12.5px;font-weight:600;letter-spacing:.02em;
-    box-shadow:0 1px 2px rgba(0,0,0,.08);
-    transition:transform .18s,box-shadow .18s;
-  }
-  .pill:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.13)}
-  .pill-sm{padding:0 22px}
-  .pill-go{background:var(--ink);color:#fff;padding:0 30px}
-  .pill .arw{font-family:var(--mono);font-size:12px}
+  /* 01 부품 */
+  .parts{grid-template-columns:repeat(12,1fr);align-items:start}
+  /* 1행: 글 + 정사각 패널 둘 / 2행: 검은 와이드 패널 + 설명. 행 높이가 맞아떨어진다 */
+  .parts .intro{grid-column:span 4}
+  .parts .p1,.parts .p3{grid-column:span 4}
+  .parts .p2{grid-column:span 8}
+  .parts .spec{grid-column:span 4;align-self:stretch;display:flex;flex-direction:column;justify-content:flex-end}
+
+  /* 02 데이터 */
+  .data{grid-template-columns:repeat(4,1fr);gap:clamp(16px,3vw,44px)}
+
+  /* 03 가격 */
+  .cost{grid-template-columns:repeat(12,1fr);gap:clamp(16px,2.4vw,36px);align-items:start}
+  .cost .head{grid-column:span 5}
+  .cost .bars{grid-column:span 7}
+  .bar{display:grid;grid-template-columns:86px 1fr auto;gap:12px;align-items:center;
+    padding:11px 0;border-bottom:1px solid var(--line)}
+  .bar:last-child{border-bottom:0}
+  .bar__t{height:7px;background:var(--line-2);position:relative}
+  .bar__t i{position:absolute;inset:0 auto 0 0;background:var(--ink);display:block}
+  .bar--total{border-top:1px solid var(--ink);border-bottom:0;margin-top:6px;padding-top:14px}
+  .bar--total .bar__v{font-size:17px}
+  .bar__v{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right}
+
+  /* 04 과정 */
+  .flow{grid-template-columns:repeat(4,1fr)}
+  .step{display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid var(--ink)}
+  .step h3{font-size:15px;font-weight:500;letter-spacing:-.02em}
+  .step p{font-size:12.5px;color:var(--ink-2);line-height:1.65}
 
   /* ── 푸터 ────────────────────────────────── */
-  footer{
-    display:flex;justify-content:space-between;align-items:flex-end;gap:28px;
-    padding:16px 2px 0;margin-top:14px;border-top:1px solid var(--line);
-  }
-  .facts{display:flex;gap:clamp(24px,4vw,64px);flex-wrap:wrap}
-  .fact{display:flex;flex-direction:column;gap:4px;max-width:27ch}
-  .fact span:last-child{font-size:12.5px;color:var(--ink);letter-spacing:-.01em;line-height:1.5}
+  footer{border-top:1px solid var(--line);padding:22px 0 30px;display:flex;
+    justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
+  .cta{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
 
   /* ── 모바일 ──────────────────────────────── */
-  @media (max-width:760px){
-    body{padding-bottom:max(14px,env(safe-area-inset-bottom))}
-    header{padding:14px 0 12px}
-    nav{display:none}
-    .head-right span.mono{display:none}   /* 지역 표기만 숨기고 장바구니는 남긴다 */
-    /* 모바일은 이미지 위에 글을 얹지 않는다 — 작은 화면에선 가독성이 먼저다 */
-    .stage{flex-direction:column;gap:18px}
-    .panel{flex:0 0 auto;min-height:0;aspect-ratio:3/4;max-height:46svh}
-    .panel img{object-position:50% 46%}
-    .panel::after{background:linear-gradient(to bottom,rgba(255,255,255,.4) 0 12%,transparent 30%)}
-    .labels{grid-template-columns:1fr auto;gap:10px;padding:12px 14px}
-    .labels div:nth-child(2){display:none}
-    .lede{max-width:none}
-    h1{font-size:clamp(32px,8.6vw,46px)}
-    .lede p{margin-top:12px;max-width:none}
-    .below{position:static;flex-direction:column;align-items:stretch;gap:18px;padding:0}
-    .pills{flex-direction:column-reverse;align-items:stretch;gap:8px}  /* 주 CTA 가 위로 */
-    .pill{width:100%;height:50px;font-size:13.5px}
-    footer{flex-direction:column;align-items:flex-start;gap:14px;margin-top:4px}
-    .facts{flex-direction:column;gap:12px}
-    .fact{max-width:none;flex-direction:row;gap:10px;align-items:baseline}
-    .scroll{display:none}
+  @media (max-width:820px){
+    .top{flex-wrap:wrap;gap:10px}
+    .top .strip{order:2;width:100%;flex:none;overflow-x:auto;scrollbar-width:none}
+    .top .strip::-webkit-scrollbar{display:none}
+    .hero{min-height:0;aspect-ratio:4/5;max-height:54svh}
+    .hero::after{background:linear-gradient(to bottom,rgba(255,255,255,.36) 0 12%,transparent 30%)}
+    .hero__cap{grid-template-columns:1fr auto}
+    .hero__cap div:nth-child(2){display:none}
+    /* 작은 화면에선 이미지 위에 글을 얹지 않는다 */
+    .hero__foot{position:static;flex-direction:column;align-items:stretch;padding:18px 0 0}
+    .pills{flex-direction:column-reverse}
+    .pill{width:100%}
+    .parts,.cost{grid-template-columns:repeat(2,1fr)}
+    .parts .intro,.parts .spec,.cost .head,.cost .bars{grid-column:span 2}
+    .parts .p1,.parts .p3{grid-column:span 1}
+    .parts .p2{grid-column:span 2}
+    .data{grid-template-columns:repeat(2,1fr)}
+    .flow{grid-template-columns:1fr}
+    .bar{grid-template-columns:72px 1fr auto;gap:8px}
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand">
-    <span class="wordmark">eulji</span>
-    <span class="mono">모듈러 미드센추리</span>
-  </div>
-  <nav>
-    <a href="build.html">프리셋</a>
-    <a href="build.html">직접 설계</a>
-    <a href="#">만드는 사람들</a>
-    <a href="#">조립 가이드</a>
+<header class="top">
+  <a class="mark" href="/">eulji</a>
+  <nav class="strip" aria-label="주요 메뉴">
+    <span class="s1">모듈러 미드센추리</span>
+    <a class="s2" href="build.html">프리셋</a>
+    <a class="s3" href="build.html">직접 설계</a>
+    <a class="s4 grow" href="#makers">만드는 사람들</a>
+    <span class="s3">Seoul · 을지로</span>
+    <a class="s5" href="build.html">설계 시작 ↗</a>
   </nav>
-  <div class="head-right">
-    <span class="mono">Seoul · 을지로</span>
-    <a href="#" class="mono">Cart (0)</a>
-  </div>
 </header>
 
-<main class="stage">
-  <figure class="panel">
+<main class="wrap">
+
+  <!-- 히어로 ─────────────────────────────── -->
+  <div class="hero">
     <picture>
-      <source media="(max-width:760px)" srcset="assets/hero-mobile.webp">
+      <source media="(max-width:820px)" srcset="assets/hero-mobile.webp">
       <img src="assets/hero-desktop.webp" width="2048" height="1280"
            alt="블랙 아노다이징 2020 알루미늄 프로파일과 백색 선반으로 조립한 2연장 3단 모듈러 선반">
     </picture>
 
-    <div class="labels">
+    <div class="hero__cap">
       <div class="mono">EULJI MODULAR SHELF 01<br>2020 / 2040 / 3030 PROFILE</div>
       <div class="mono">W 300–2400 · D 250–700 · H 300–2100 MM<br>10MM STEP · BLACK ANODIZED</div>
-      <div class="mono">제작 10일 + 배송 2일</div>
+      <div class="mono">№ 1600·400·800</div>
     </div>
-  </figure>
 
-  <div class="below">
-      <div class="lede">
-        <h1>맞춤은<br>비싸지 않다</h1>
-        <p>내 방 치수에 맞춰 설계하면, 을지로의 소공인이 그대로 만듭니다.
+    <div class="hero__foot">
+      <div>
+        <h1 class="display">맞춤은<br>비싸지 않다</h1>
+        <p class="lede">내 방 치수에 맞춰 설계하면, 을지로의 소공인이 그대로 만듭니다.
            설계하는 동안 가격과 부품표가 그대로 보입니다.</p>
       </div>
-
       <div class="pills">
-        <a class="pill pill-sm" href="build.html">프리셋</a>
-        <a class="pill pill-go" href="build.html">내 방 치수로 시작하기 <span class="arw">→</span></a>
+        <a class="pill" href="build.html">프리셋</a>
+        <a class="pill pill--go" href="build.html">내 방 치수로 시작하기 <span class="arw">→</span></a>
       </div>
+    </div>
   </div>
-</main>
 
-<footer>
-  <div class="facts">
-    <div class="fact"><span class="mono">01</span><span>10mm 단위로 폭·깊이·높이를 조절합니다</span></div>
-    <div class="fact"><span class="mono">02</span><span>견적과 부품표를 설계 중에 모두 공개합니다</span></div>
-    <div class="fact"><span class="mono">03</span><span>을지로 금속·목공 소공인이 직접 제작합니다</span></div>
-  </div>
-  <div class="mono scroll">↓ Scroll</div>
-</footer>
+  <!-- 01 부품 ───────────────────────────── -->
+  <section id="parts">
+    <div class="chapter"><span class="idx">01</span><span class="mono">Components</span></div>
+
+    <div class="grid parts">
+      <div class="intro">
+        <h2 class="display display--sm">부품은<br>네 가지뿐</h2>
+        <p class="lede" style="margin-top:18px">
+          프로파일, 면재, 체결구, 풋. 가구 하나를 이 넷으로 환원하면
+          치수가 바뀌어도 부품표가 흔들리지 않습니다. 그래서 1cm 단위 맞춤이
+          특별 주문이 아니라 기본값이 됩니다.</p>
+        <a class="lnk" href="build.html" style="margin-top:22px">부품표 전체 보기 <span class="mono">↗</span></a>
+      </div>
+
+      <figure class="plate p1">
+        <div class="plate__cap"><span class="plate__name">ALUMINIUM PROFILE<sup>®</sup></span></div>
+        <div class="plate__art"><img src="assets/part-profile.webp" alt="2020 T슬롯 알루미늄 프로파일"></div>
+        <div class="plate__no mono">№2020</div>
+      </figure>
+
+      <figure class="plate p3">
+        <div class="plate__cap"><span class="plate__name">LEVELLING FOOT<sup>®</sup></span></div>
+        <div class="plate__art"><img src="assets/part-foot.webp" alt="수평조절풋"></div>
+        <div class="plate__no mono">№M8·±6MM</div>
+      </figure>
+
+      <figure class="plate plate--wide plate--dark p2">
+        <div class="plate__cap"><span class="plate__name">CORNER JOINT<sup>®</sup></span></div>
+        <div class="plate__art"><img src="assets/part-joint.webp" alt="기둥과 레일이 만나는 코너 조인트와 브래킷"></div>
+        <div class="plate__no mono">MODEL B · 42 SET</div>
+      </figure>
+
+      <div class="spec brk">
+        <div class="mono" style="margin-bottom:10px">General information</div>
+        <p style="font-size:12.5px;line-height:1.7;color:var(--ink-2)">
+          면재는 무채색 3단계와 화이트 오크. 칸마다 다르게 고를 수 있고,
+          고른 즉시 가격·무게·부품표·작업지시서가 따라 바뀝니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 데이터 ─────────────────────────── -->
+  <section>
+    <div class="chapter"><span class="idx">02</span><span class="mono">Specification</span></div>
+    <div class="grid data">
+      <div class="datum"><span class="mono">Dimension range</span>
+        <b class="datum__v">2,400<small>MM</small></b>
+        <span class="mono" style="letter-spacing:.06em">가로 최대 · 깊이 700 · 높이 2,100</span></div>
+      <div class="datum"><span class="mono">Size combinations</span>
+        <b class="datum__v">1,756,786</b>
+        <span class="mono" style="letter-spacing:.06em">10mm 단위 W×D×H</span></div>
+      <div class="datum"><span class="mono">Lead time</span>
+        <b class="datum__v">12<small>DAYS</small></b>
+        <span class="mono" style="letter-spacing:.06em">제작 10 + 배송 2</span></div>
+      <div class="datum"><span class="mono">Load check</span>
+        <b class="datum__v">R1–R9</b>
+        <span class="mono" style="letter-spacing:.06em">처짐·체결·전도 자동 검증</span></div>
+    </div>
+  </section>
+
+  <!-- 03 가격 ───────────────────────────── -->
+  <section>
+    <div class="chapter"><span class="idx">03</span><span class="mono">Cost structure</span></div>
+    <div class="grid cost">
+      <div class="head">
+        <h2 class="display display--sm">가격을<br>숨기지 않습니다</h2>
+        <p class="lede" style="margin-top:18px">
+          설계하는 동안 자재비·가공비·포장비·배송비가 그대로 열려 있습니다.
+          부품표를 CSV로 내려받을 수도 있습니다. 맞춤 가구가 비싼 건
+          원가 때문이 아니라 그 구조가 보이지 않기 때문입니다.</p>
+        <p class="mono" style="margin-top:20px">* 1600×400×800 · 2칸 3단 · 화이트 기준</p>
+      </div>
+      <div class="bars">
+        <div class="bar"><span class="mono mono--ink">자재</span>
+          <span class="bar__t"><i style="width:73%"></i></span><span class="bar__v">185,050</span></div>
+        <div class="bar"><span class="mono mono--ink">가공</span>
+          <span class="bar__t"><i style="width:17%"></i></span><span class="bar__v">41,814</span></div>
+        <div class="bar"><span class="mono mono--ink">포장</span>
+          <span class="bar__t"><i style="width:6%"></i></span><span class="bar__v">14,400</span></div>
+        <div class="bar"><span class="mono mono--ink">배송</span>
+          <span class="bar__t"><i style="width:5%"></i></span><span class="bar__v">12,000</span></div>
+        <div class="bar"><span class="mono mono--ink">원가 합계</span>
+          <span class="bar__t" style="background:transparent"></span><span class="bar__v">253,264</span></div>
+        <div class="bar bar--total"><span class="mono mono--ink">판매가</span>
+          <span class="bar__t" style="background:transparent"></span><span class="bar__v">390,000</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 과정 ───────────────────────────── -->
+  <section id="makers">
+    <div class="chapter"><span class="idx">04</span><span class="mono">How it works</span></div>
+    <div class="grid flow">
+      <div class="step"><span class="mono">Step 01</span><h3>치수를 넣습니다</h3>
+        <p>벽 치수를 재서 넣으면 최대 치수를 거기에 맞춥니다. 10mm 단위로 떨어집니다.</p></div>
+      <div class="step"><span class="mono">Step 02</span><h3>칸과 면재를 고릅니다</h3>
+        <p>칸을 비우거나 면재를 칸마다 바꿉니다. 가격이 조작할 때마다 따라 움직입니다.</p></div>
+      <div class="step"><span class="mono">Step 03</span><h3>설계를 검증합니다</h3>
+        <p>처짐·체결부·전도를 자동으로 계산해, 못 만드는 설계는 담기지 않습니다.</p></div>
+      <div class="step"><span class="mono">Step 04</span><h3>을지로가 만듭니다</h3>
+        <p>주문이 절단 리스트와 작업지시서로 바뀌어 금속·목공 소공인에게 전달됩니다.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="cta">
+      <h2 class="display display--sm">지금 치수를 넣어보세요</h2>
+      <a class="pill pill--go" href="build.html">설계 시작하기 <span class="arw">→</span></a>
+    </div>
+    <div class="mono" style="text-align:right;line-height:1.9">
+      EULJI · 모듈러 미드센추리<br>
+      Seoul · 을지로<br>
+      프로토타입 — 가격은 추정치입니다
+    </div>
+  </footer>
+</main>
 
 </body>
 </html>

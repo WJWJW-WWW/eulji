@@ -461,6 +461,7 @@ function renderBanner(issues) {
 let quote = null, issues = [];
 function renderQuote() {
   $("#q-total").textContent = won(quote.total);
+  $("#nav-partno").textContent = `\u2116${design.w}\u00B7${design.d}\u00B7${design.h}`;
   $("#q-lead").textContent = `제작 ${quote.leadDays.make}일 + 배송 ${quote.leadDays.ship}일`;
   $("#q-weight").textContent = quote.weight.toFixed(1) + "kg";
   $("#q-parts").textContent = `${quote.counts.bars}개 · 패널 ${quote.counts.panels}장`;

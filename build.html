@@ -7,6 +7,7 @@
 <meta name="description" content="알루미늄 프로파일 모듈러 가구를 원하는 치수로 설계하고 실시간 견적을 확인합니다.">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="assets/base.css">
 <link rel="stylesheet" href="assets/build.css">
 <script type="importmap">
 {"imports":{
@@ -22,6 +23,7 @@
   <!-- A. 상단 바 ─────────────────────────────────────── -->
   <header class="bar">
     <a class="wordmark" href="index.html" id="nav-logo">eulji</a>
+    <span class="mono partno" id="nav-partno">№—</span>
     <input id="nav-title" class="title" value="내 가구 1" aria-label="설계 이름" maxlength="40">
 
     <div class="grp">
@@ -150,6 +152,7 @@
   <!-- G. 견적 바 ───────────────────────────────────── -->
   <footer class="quote">
     <div class="total">
+      <span class="mono tlabel">Total</span>
       <b id="q-total">—</b>
       <span id="q-delta" class="delta"></span>
       <button class="link" id="q-breakdown">견적 상세</button>
